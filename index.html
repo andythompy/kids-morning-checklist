@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Checklist</title>
+    
+    <!-- Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Canvas Confetti from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        body {
+            height: 800px;
+            width: 1280px;
+            overflow: hidden;
+        }
+        
+        .task-item {
+            transition: all 0.3s ease;
+        }
+        
+        .task-item.completed {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+        
+        .column-complete {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 4px solid #28a745;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .pulse-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-4">
+    <!-- 
+    This file is designed to be hosted on GitHub Pages and deployed via GitHub Actions.
+    Single file web app for Google Nest Hub Max (1280x800).
+    -->
+    
+    <div id="app" class="h-full flex flex-col">
+        <!-- Title -->
+        <div class="text-center mb-4">
+            <h1 class="text-5xl font-bold text-purple-700 drop-shadow-lg">🌅 Our Morning Checklist</h1>
+            <p class="text-xl text-gray-600 mt-2">Check off each task to start your day!</p>
+        </div>
+        
+        <!-- Columns Container -->
+        <div id="columns-container" class="flex-1 flex gap-4 justify-center items-stretch">
+            <!-- Columns will be dynamically generated here -->
+        </div>
+    </div>
+
+    <script>
+        // ===================================================================
+        // CONFIGURATION - Easy to edit!
+        // ===================================================================
+        const CONFIG = {
+            names: ["Rose", "Lucy", "Olive"],
+            tasks: [
+                "Get dressed",
+                "Eat breakfast (and clean up)",
+                "Brush hair",
+                "Tidy room",
+                "Laundry basket",
+                "Piano practice",
+                "Individual chores",
+                "Pack bag",
+                "Socks & shoes"
+            ]
+        };
+        // ===================================================================
+
+        // Color palette for each child
+        const COLORS = [
+            { bg: 'bg-pink-50', border: 'border-pink-300', hover: 'hover:bg-pink-100', text: 'text-pink-700', checkmark: 'bg-pink-500' },
+            { bg: 'bg-blue-50', border: 'border-blue-300', hover: 'hover:bg-blue-100', text: 'text-blue-700', checkmark: 'bg-blue-500' },
+            { bg: 'bg-purple-50', border: 'border-purple-300', hover: 'hover:bg-purple-100', text: 'text-purple-700', checkmark: 'bg-purple-500' }
+        ];
+
+        // State management
+        let state = {};
+        const TODAY_KEY = getTodayKey();
+
+        // Get today's date as a key
+        function getTodayKey() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+
+        // Load state from localStorage
+        function loadState() {
+            const savedData = localStorage.getItem('morningChecklist');
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    // Check if it's from today
+                    if (parsed.date === TODAY_KEY) {
+                        state = parsed.state || {};
+                    } else {
+                        // Different day, reset
+                        state = {};
+                        saveState();
+                    }
+                } catch (e) {
+                    state = {};
+                }
+            }
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            localStorage.setItem('morningChecklist', JSON.stringify({
+                date: TODAY_KEY,
+                state: state
+            }));
+        }
+
+        // Get state key for a task
+        function getStateKey(name, task) {
+            return `${name.toLowerCase()}-${task.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
+        }
+
+        // Check if task is completed
+        function isTaskCompleted(name, task) {
+            const key = getStateKey(name, task);
+            return state[key] === true;
+        }
+
+        // Toggle task completion
+        function toggleTask(name, task, element, columnElement) {
+            const key = getStateKey(name, task);
+            state[key] = !state[key];
+            saveState();
+
+            // Update UI
+            if (state[key]) {
+                element.classList.add('completed');
+                element.querySelector('.checkmark').classList.remove('hidden');
+            } else {
+                element.classList.remove('completed');
+                element.querySelector('.checkmark').classList.add('hidden');
+            }
+
+            // Check if column is complete
+            checkColumnCompletion(name, columnElement);
+        }
+
+        // Check if all tasks in a column are complete
+        function checkColumnCompletion(name, columnElement) {
+            const allComplete = CONFIG.tasks.every(task => isTaskCompleted(name, task));
+            
+            const wasComplete = columnElement.classList.contains('column-complete');
+            
+            if (allComplete && !wasComplete) {
+                // Column just became complete - celebrate!
+                columnElement.classList.add('column-complete', 'pulse-animation');
+                
+                // Show completion badge
+                const badge = columnElement.querySelector('.completion-badge');
+                badge.classList.remove('hidden');
+                
+                // Trigger confetti
+                triggerConfetti(columnElement);
+                
+                // Remove pulse animation after it completes
+                setTimeout(() => {
+                    columnElement.classList.remove('pulse-animation');
+                }, 500);
+            } else if (!allComplete && wasComplete) {
+                // Column became incomplete
+                columnElement.classList.remove('column-complete');
+                const badge = columnElement.querySelector('.completion-badge');
+                badge.classList.add('hidden');
+            }
+        }
+
+        // Trigger confetti celebration
+        function triggerConfetti(columnElement) {
+            const rect = columnElement.getBoundingClientRect();
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+            // Fire confetti from the column position
+            const count = 200;
+            const defaults = {
+                origin: { x, y },
+                spread: 100,
+                ticks: 200,
+                gravity: 1,
+                decay: 0.94,
+                startVelocity: 30,
+            };
+
+            // Multiple bursts for effect
+            confetti({
+                ...defaults,
+                particleCount: count * 0.25,
+                scalar: 1.2,
+            });
+            confetti({
+                ...defaults,
+                particleCount: count * 0.2,
+                scalar: 0.75,
+            });
+            confetti({
+                ...defaults,
+                particleCount: count * 0.35,
+                scalar: 1,
+            });
+            confetti({
+                ...defaults,
+                particleCount: count * 0.2,
+                scalar: 0.5,
+            });
+        }
+
+        // Create a task element
+        function createTaskElement(name, task, colorScheme) {
+            const isCompleted = isTaskCompleted(name, task);
+            
+            const taskDiv = document.createElement('div');
+            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-xl p-4 cursor-pointer ${colorScheme.hover} flex items-center gap-3 ${isCompleted ? 'completed' : ''}`;
+            
+            taskDiv.innerHTML = `
+                <div class="checkmark ${colorScheme.checkmark} text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg flex-shrink-0 ${isCompleted ? '' : 'hidden'}">
+                    ✓
+                </div>
+                <div class="flex-1 text-lg font-semibold text-gray-700">
+                    ${task}
+                </div>
+            `;
+            
+            return taskDiv;
+        }
+
+        // Create a column for a child
+        function createColumn(name, index) {
+            const colorScheme = COLORS[index % COLORS.length];
+            
+            const column = document.createElement('div');
+            column.className = `flex-1 ${colorScheme.bg} border-4 ${colorScheme.border} rounded-3xl p-6 shadow-xl flex flex-col transition-all duration-300`;
+            column.id = `column-${name.toLowerCase()}`;
+            
+            // Header
+            const header = document.createElement('div');
+            header.className = 'mb-4 text-center relative';
+            header.innerHTML = `
+                <h2 class="text-4xl font-bold ${colorScheme.text} mb-2">${name}</h2>
+                <div class="completion-badge hidden absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg">
+                    ✓
+                </div>
+            `;
+            column.appendChild(header);
+            
+            // Tasks container
+            const tasksContainer = document.createElement('div');
+            tasksContainer.className = 'flex-1 space-y-3 overflow-y-auto';
+            
+            CONFIG.tasks.forEach(task => {
+                const taskElement = createTaskElement(name, task, colorScheme);
+                taskElement.addEventListener('click', () => {
+                    toggleTask(name, task, taskElement, column);
+                });
+                tasksContainer.appendChild(taskElement);
+            });
+            
+            column.appendChild(tasksContainer);
+            
+            // Check initial completion state
+            checkColumnCompletion(name, column);
+            
+            return column;
+        }
+
+        // Initialize the app
+        function init() {
+            loadState();
+            
+            const container = document.getElementById('columns-container');
+            
+            CONFIG.names.forEach((name, index) => {
+                const column = createColumn(name, index);
+                container.appendChild(column);
+            });
+        }
+
+        // Start the app when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
