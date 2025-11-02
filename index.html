@@ -17,6 +17,22 @@
             width: 100vw;
             overflow: hidden;
             touch-action: pan-y;
+            background: linear-gradient(to bottom, #fef3c7 0%, #fed7aa 20%, #fca5a5 40%, #f9a8d4 60%, #c4b5fd 80%, #93c5fd 100%);
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800"><circle cx="640" cy="600" r="120" fill="%23fbbf24" opacity="0.6"/><circle cx="640" cy="600" r="140" fill="%23fcd34d" opacity="0.3"/><circle cx="640" cy="600" r="160" fill="%23fde68a" opacity="0.2"/></svg>');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.8;
+            pointer-events: none;
         }
         
         .task-item {
@@ -71,14 +87,9 @@
     Single file web app for Google Nest Hub Max (1280x800).
     -->
     
-    <div id="app" class="h-full flex flex-col">
-        <!-- Title -->
-        <div class="text-center mb-2 py-2">
-            <h1 class="text-4xl font-bold text-purple-700 drop-shadow-lg">🌅 Our Morning Checklist</h1>
-        </div>
-        
+    <div id="app" class="h-full flex flex-col relative z-10">
         <!-- Columns Container -->
-        <div id="columns-container" class="flex-1 flex gap-3 justify-center items-stretch overflow-hidden px-2 pb-2">
+        <div id="columns-container" class="flex-1 flex gap-3 justify-center items-stretch overflow-hidden p-3">
             <!-- Columns will be dynamically generated here -->
         </div>
     </div>
