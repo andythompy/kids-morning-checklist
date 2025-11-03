@@ -128,6 +128,74 @@
             background: rgba(0,0,0,0.3);
             border-radius: 3px;
         }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            body {
+                touch-action: pan-x pan-y;
+            }
+            
+            #app {
+                padding: 0 !important;
+            }
+            
+            /* Header adjustments for mobile */
+            .header-mobile {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 0.5rem !important;
+                padding: 0.75rem !important;
+            }
+            
+            .header-mobile h1 {
+                font-size: 1.25rem !important;
+            }
+            
+            #weather-display {
+                width: 100%;
+            }
+            
+            #weather-display > div {
+                width: 100%;
+                padding: 0.5rem 0.75rem !important;
+            }
+            
+            /* Make columns scroll horizontally */
+            #columns-container {
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                flex-wrap: nowrap !important;
+                justify-content: flex-start !important;
+                padding: 0.5rem 0 0.5rem 1rem !important;
+                gap: 1rem !important;
+                -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x mandatory;
+                scroll-padding-left: 1rem;
+            }
+            
+            #columns-container > div {
+                min-width: calc(100vw - 3rem) !important;
+                flex-shrink: 0 !important;
+                scroll-snap-align: start;
+            }
+            
+            /* Add scroll indicator hint */
+            #columns-container::after {
+                content: '';
+                position: absolute;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 2rem;
+                background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+                pointer-events: none;
+            }
+        }
+        
+        /* Tablet landscape - keep desktop layout */
+        @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
+            /* Keep desktop layout, just slightly smaller */
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-4">
@@ -138,7 +206,7 @@
     
     <div id="app" class="h-full flex flex-col relative z-10">
         <!-- Header with Title and Weather -->
-        <div class="flex justify-between items-center px-4 py-1.5">
+        <div class="header-mobile flex justify-between items-center px-4 py-1.5">
             <!-- Title -->
             <div class="flex-shrink-0">
                 <h1 class="text-2xl font-bold text-gray-800 drop-shadow-sm">🌅 Morning Checklist</h1>
@@ -162,7 +230,7 @@
         </div>
         
         <!-- Columns Container -->
-        <div id="columns-container" class="flex-1 flex gap-3 justify-center items-stretch overflow-hidden px-3 pb-2">
+        <div id="columns-container" class="flex-1 flex gap-3 justify-start items-stretch overflow-hidden px-3 pb-2">
             <!-- Columns will be dynamically generated here -->
         </div>
     </div>
@@ -605,6 +673,13 @@
                 // Setup Firestore listener after UI is built
                 console.log('Setting up Firestore listener...');
                 setupFirestoreListener();
+                
+                // On mobile, scroll to show first column properly
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => {
+                        container.scrollLeft = 0;
+                    }, 100);
+                }
                 
                 // Fetch weather on load
                 fetchWeather();
