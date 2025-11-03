@@ -17,8 +17,25 @@
             width: 100vw;
             overflow: hidden;
             touch-action: pan-y;
-            background: linear-gradient(to bottom, #fef3c7 0%, #fed7aa 20%, #fca5a5 40%, #f9a8d4 60%, #c4b5fd 80%, #93c5fd 100%);
             position: relative;
+            transition: background 1s ease;
+        }
+        
+        /* Weather theme backgrounds */
+        body.weather-fine {
+            background: linear-gradient(to bottom, #fbbf24 0%, #f59e0b 15%, #fb923c 30%, #f97316 45%, #ec4899 60%, #a855f7 75%, #6366f1 90%, #3b82f6 100%);
+        }
+        
+        body.weather-hot {
+            background: linear-gradient(to bottom, #fef08a 0%, #fde047 10%, #facc15 20%, #fb923c 35%, #f97316 50%, #ea580c 65%, #dc2626 80%, #b91c1c 100%);
+        }
+        
+        body.weather-cold {
+            background: linear-gradient(to bottom, #e0f2fe 0%, #bae6fd 15%, #7dd3fc 30%, #38bdf8 45%, #0ea5e9 60%, #0284c7 75%, #0369a1 90%, #075985 100%);
+        }
+        
+        body.weather-rain {
+            background: linear-gradient(to bottom, #64748b 0%, #475569 20%, #334155 40%, #1e293b 60%, #0f172a 80%, #020617 100%);
         }
         
         body::before {
@@ -28,20 +45,52 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800"><circle cx="640" cy="600" r="120" fill="%23fbbf24" opacity="0.6"/><circle cx="640" cy="600" r="140" fill="%23fcd34d" opacity="0.3"/><circle cx="640" cy="600" r="160" fill="%23fde68a" opacity="0.2"/></svg>');
             background-size: cover;
             background-position: center;
-            opacity: 0.8;
+            opacity: 1;
             pointer-events: none;
+            transition: background-image 1s ease;
+        }
+        
+        /* Fine weather - Sunrise */
+        body.weather-fine::before {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800"><defs><radialGradient id="sunGlow" cx="50%25" cy="50%25" r="50%25"><stop offset="0%25" style="stop-color:%23fef3c7;stop-opacity:1" /><stop offset="50%25" style="stop-color:%23fcd34d;stop-opacity:0.6" /><stop offset="100%25" style="stop-color:%23fbbf24;stop-opacity:0" /></radialGradient></defs><ellipse cx="640" cy="700" rx="600" ry="200" fill="%23fb923c" opacity="0.3"/><ellipse cx="640" cy="720" rx="500" ry="150" fill="%23f59e0b" opacity="0.4"/><circle cx="640" cy="650" r="100" fill="url(%23sunGlow)"/><circle cx="640" cy="650" r="80" fill="%23fbbf24"/><path d="M 0 750 Q 320 700 640 720 T 1280 750 L 1280 800 L 0 800 Z" fill="%23374151" opacity="0.4"/><path d="M 0 780 Q 320 750 640 770 T 1280 780 L 1280 800 L 0 800 Z" fill="%231f2937" opacity="0.5"/></svg>');
+        }
+        
+        /* Hot weather - Bright sun */
+        body.weather-hot::before {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800"><defs><radialGradient id="hotSun" cx="50%25" cy="50%25" r="50%25"><stop offset="0%25" style="stop-color:%23fef08a;stop-opacity:1" /><stop offset="40%25" style="stop-color:%23fde047;stop-opacity:0.8" /><stop offset="100%25" style="stop-color:%23fb923c;stop-opacity:0" /></radialGradient></defs><circle cx="640" cy="250" r="150" fill="url(%23hotSun)"/><circle cx="640" cy="250" r="100" fill="%23fbbf24"/><line x1="640" y1="80" x2="640" y2="150" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="640" y1="350" x2="640" y2="420" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="470" y1="250" x2="540" y2="250" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="740" y1="250" x2="810" y2="250" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="520" y1="130" x2="570" y2="180" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="710" y1="320" x2="760" y2="370" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="760" y1="130" x2="710" y2="180" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><line x1="570" y1="320" x2="520" y2="370" stroke="%23fbbf24" stroke-width="12" stroke-linecap="round"/><path d="M 0 650 Q 160 620 320 650 T 640 650 Q 800 650 960 620 T 1280 650 L 1280 800 L 0 800 Z" fill="%23a16207" opacity="0.3"/></svg>');
+        }
+        
+        /* Cold weather - Snowflakes */
+        body.weather-cold::before {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800"><circle cx="200" cy="150" r="3" fill="%23e0f2fe"/><circle cx="400" cy="100" r="4" fill="%23bae6fd"/><circle cx="600" cy="180" r="3" fill="%23e0f2fe"/><circle cx="800" cy="120" r="5" fill="%23bae6fd"/><circle cx="1000" cy="160" r="3" fill="%23e0f2fe"/><circle cx="300" cy="300" r="4" fill="%23bae6fd"/><circle cx="700" cy="280" r="3" fill="%23e0f2fe"/><circle cx="900" cy="350" r="4" fill="%23bae6fd"/><circle cx="150" cy="400" r="3" fill="%23e0f2fe"/><circle cx="500" cy="450" r="5" fill="%23bae6fd"/><circle cx="1100" cy="380" r="3" fill="%23e0f2fe"/><path d="M 0 650 L 0 800 L 1280 800 L 1280 650 Q 960 680 640 650 T 0 650 Z" fill="%23f0f9ff" opacity="0.8"/><circle cx="100" cy="680" r="30" fill="%23f0f9ff" opacity="0.6"/><circle cx="250" cy="700" r="40" fill="%23e0f2fe" opacity="0.7"/><circle cx="450" cy="690" r="35" fill="%23f0f9ff" opacity="0.6"/><circle cx="650" cy="710" r="45" fill="%23e0f2fe" opacity="0.7"/><circle cx="850" cy="695" r="35" fill="%23f0f9ff" opacity="0.6"/><circle cx="1050" cy="705" r="40" fill="%23e0f2fe" opacity="0.7"/><circle cx="1200" cy="690" r="30" fill="%23f0f9ff" opacity="0.6"/></svg>');
+        }
+        
+        /* Rain weather - Rain drops and clouds */
+        body.weather-rain::before {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800"><ellipse cx="300" cy="150" rx="80" ry="50" fill="%23475569" opacity="0.8"/><ellipse cx="350" cy="130" rx="70" ry="45" fill="%23334155" opacity="0.9"/><ellipse cx="250" cy="140" rx="60" ry="40" fill="%2364748b" opacity="0.7"/><ellipse cx="700" cy="180" rx="90" ry="55" fill="%23475569" opacity="0.8"/><ellipse cx="760" cy="160" rx="75" ry="48" fill="%23334155" opacity="0.9"/><ellipse cx="640" cy="170" rx="65" ry="42" fill="%2364748b" opacity="0.7"/><ellipse cx="1000" cy="140" rx="85" ry="52" fill="%23475569" opacity="0.8"/><ellipse cx="1060" cy="120" rx="70" ry="45" fill="%23334155" opacity="0.9"/><line x1="280" y1="200" x2="260" y2="280" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="320" y1="210" x2="300" y2="290" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="360" y1="200" x2="340" y2="280" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="680" y1="230" x2="660" y2="310" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="720" y1="240" x2="700" y2="320" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="760" y1="230" x2="740" y2="310" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="980" y1="190" x2="960" y2="270" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="1020" y1="200" x2="1000" y2="280" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="1060" y1="190" x2="1040" y2="270" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="200" y1="350" x2="180" y2="430" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="400" y1="380" x2="380" y2="460" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="600" y1="360" x2="580" y2="440" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="800" y1="390" x2="780" y2="470" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/><line x1="1000" y1="370" x2="980" y2="450" stroke="%2394a3b8" stroke-width="3" opacity="0.6"/></svg>');
+        }
+        
+        body.weather-rain {
+            animation: rain-bg 0.3s infinite;
+        }
+        
+        @keyframes rain-bg {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.98; }
         }
         
         .task-item {
             transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         
         .task-item.completed {
-            opacity: 0.5;
+            opacity: 0.35;
             text-decoration: line-through;
+            box-shadow: none;
+            filter: grayscale(0.5);
         }
         
         .column-complete {
@@ -88,11 +137,49 @@
     -->
     
     <div id="app" class="h-full flex flex-col relative z-10">
+        <!-- Header with Title and Weather -->
+        <div class="flex justify-between items-center px-4 py-1.5">
+            <!-- Title -->
+            <div class="flex-shrink-0">
+                <h1 class="text-2xl font-bold text-gray-800 drop-shadow-sm">🌅 Morning Checklist</h1>
+            </div>
+            
+            <!-- Weather Display -->
+            <div id="weather-display" class="flex-shrink-0">
+                <div class="bg-white/80 backdrop-blur-sm rounded-xl px-4 py-1.5 shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <div id="weather-icon" class="text-2xl"></div>
+                        <div class="flex items-center gap-3">
+                            <div id="weather-temp" class="text-xl font-bold text-gray-800"></div>
+                            <div class="text-left">
+                                <div id="weather-range" class="text-xs text-gray-600 leading-tight"></div>
+                                <div id="weather-desc" class="text-xs text-gray-500 capitalize leading-tight"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Columns Container -->
-        <div id="columns-container" class="flex-1 flex gap-3 justify-center items-stretch overflow-hidden p-3">
+        <div id="columns-container" class="flex-1 flex gap-3 justify-center items-stretch overflow-hidden px-3 pb-2">
             <!-- Columns will be dynamically generated here -->
         </div>
     </div>
+    
+    <!-- Test Weather UI (for development) - Commented out for production -->
+    <!-- 
+    <div id="test-weather" class="fixed bottom-4 right-4 z-50 bg-white/90 backdrop-blur rounded-lg p-3 shadow-xl">
+        <div class="text-xs font-bold mb-2 text-gray-700">Test Weather:</div>
+        <div class="flex flex-col gap-1">
+            <button onclick="testWeather('fine', 22)" class="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 rounded text-xs font-semibold">☀️ Fine (22°C)</button>
+            <button onclick="testWeather('hot', 35)" class="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded text-xs font-semibold text-white">🔥 Hot (35°C)</button>
+            <button onclick="testWeather('cold', 5)" class="px-3 py-1 bg-blue-400 hover:bg-blue-500 rounded text-xs font-semibold text-white">❄️ Cold (5°C)</button>
+            <button onclick="testWeather('rain', 16)" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-xs font-semibold text-white">🌧️ Rain (16°C)</button>
+            <button onclick="fetchWeather()" class="px-3 py-1 bg-green-500 hover:bg-green-600 rounded text-xs font-semibold text-white mt-1">🌍 Real Weather</button>
+        </div>
+    </div>
+    -->
 
     <script>
         // ===================================================================
@@ -110,15 +197,22 @@
                 { text: "Individual chores", emoji: "✨" },
                 { text: "Pack bag", emoji: "🎒" },
                 { text: "Socks & shoes", emoji: "👟" }
-            ]
+            ],
+            // Weather Configuration
+            weather: {
+                // Location coordinates (Sydney, Australia by default) - change to your location
+                // Find your coordinates: https://www.google.com/maps (right-click on map to get coordinates)
+                lat: -38.1481736,
+                lon: 144.336537
+            }
         };
         // ===================================================================
 
         // Color palette for each child
         const COLORS = [
-            { bg: 'bg-pink-50', border: 'border-pink-300', hover: 'hover:bg-pink-100', text: 'text-pink-700', checkmark: 'bg-pink-500' },
-            { bg: 'bg-blue-50', border: 'border-blue-300', hover: 'hover:bg-blue-100', text: 'text-blue-700', checkmark: 'bg-blue-500' },
-            { bg: 'bg-purple-50', border: 'border-purple-300', hover: 'hover:bg-purple-100', text: 'text-purple-700', checkmark: 'bg-purple-500' }
+            { bg: 'bg-white', border: 'border-pink-400', hover: 'hover:bg-pink-50', text: 'text-pink-700', checkmark: 'bg-pink-500', columnBg: 'bg-pink-50/80' },
+            { bg: 'bg-white', border: 'border-blue-400', hover: 'hover:bg-blue-50', text: 'text-blue-700', checkmark: 'bg-blue-500', columnBg: 'bg-blue-50/80' },
+            { bg: 'bg-white', border: 'border-purple-400', hover: 'hover:bg-purple-50', text: 'text-purple-700', checkmark: 'bg-purple-500', columnBg: 'bg-purple-50/80' }
         ];
 
         // State management
@@ -263,7 +357,7 @@
             const isCompleted = isTaskCompleted(name, task.text);
             
             const taskDiv = document.createElement('div');
-            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2.5 cursor-pointer ${colorScheme.hover} flex items-center gap-2 ${isCompleted ? 'completed' : ''}`;
+            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2 cursor-pointer ${colorScheme.hover} flex items-center gap-2 ${isCompleted ? 'completed' : ''}`;
             
             taskDiv.innerHTML = `
                 <div class="checkmark ${colorScheme.checkmark} text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-base flex-shrink-0 ${isCompleted ? '' : 'hidden'}">
@@ -283,15 +377,15 @@
             const colorScheme = COLORS[index % COLORS.length];
             
             const column = document.createElement('div');
-            column.className = `flex-1 ${colorScheme.bg} border-3 ${colorScheme.border} rounded-2xl p-3 shadow-xl flex flex-col transition-all duration-300`;
+            column.className = `flex-1 ${colorScheme.columnBg} backdrop-blur-sm border-3 ${colorScheme.border} rounded-2xl p-2.5 shadow-xl flex flex-col transition-all duration-300`;
             column.id = `column-${name.toLowerCase()}`;
             
             // Header
             const header = document.createElement('div');
-            header.className = 'mb-2 text-center relative';
+            header.className = 'mb-1.5 text-center relative';
             header.innerHTML = `
-                <h2 class="text-3xl font-bold ${colorScheme.text}">${name}</h2>
-                <div class="completion-badge hidden absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-lg">
+                <h2 class="text-2xl font-bold ${colorScheme.text}">${name}</h2>
+                <div class="completion-badge hidden absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg">
                     ✓
                 </div>
             `;
@@ -299,7 +393,7 @@
             
             // Tasks container with scrolling enabled
             const tasksContainer = document.createElement('div');
-            tasksContainer.className = 'flex-1 space-y-2 tasks-scroll';
+            tasksContainer.className = 'flex-1 space-y-1.5 tasks-scroll';
             
             CONFIG.tasks.forEach(task => {
                 const taskElement = createTaskElement(name, task, colorScheme);
@@ -330,6 +424,125 @@
             return column;
         }
 
+        // Weather functionality
+        function getWeatherTheme(temp, condition) {
+            // Determine weather theme based on temperature and conditions
+            if (condition.includes('rain') || condition.includes('drizzle') || condition.includes('thunderstorm')) {
+                return 'rain';
+            } else if (temp >= 30) {
+                return 'hot';
+            } else if (temp <= 10) {
+                return 'cold';
+            } else {
+                return 'fine';
+            }
+        }
+
+        function getWeatherEmoji(condition) {
+            const conditionLower = condition.toLowerCase();
+            if (conditionLower.includes('clear')) return '☀️';
+            if (conditionLower.includes('cloud')) return '☁️';
+            if (conditionLower.includes('rain')) return '🌧️';
+            if (conditionLower.includes('drizzle')) return '🌦️';
+            if (conditionLower.includes('thunder')) return '⛈️';
+            if (conditionLower.includes('snow')) return '❄️';
+            if (conditionLower.includes('mist') || conditionLower.includes('fog')) return '🌫️';
+            return '🌤️';
+        }
+
+        function updateWeatherDisplay(temp, minTemp, maxTemp, description, theme) {
+            document.getElementById('weather-temp').textContent = `${Math.round(temp)}°C`;
+            document.getElementById('weather-range').textContent = `${Math.round(minTemp)}°C - ${Math.round(maxTemp)}°C`;
+            document.getElementById('weather-desc').textContent = description;
+            document.getElementById('weather-icon').textContent = getWeatherEmoji(description);
+            
+            // Update theme
+            document.body.className = `weather-${theme}`;
+        }
+
+        async function fetchWeather() {
+            try {
+                // Using Open-Meteo API (completely free, no API key needed)
+                // Documentation: https://open-meteo.com/
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.weather.lat}&longitude=${CONFIG.weather.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Weather API error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const temp = data.current.temperature_2m;
+                const minTemp = data.daily.temperature_2m_min[0];
+                const maxTemp = data.daily.temperature_2m_max[0];
+                const weatherCode = data.current.weather_code;
+                
+                // Convert WMO weather code to description and condition
+                const weatherInfo = getWeatherInfoFromCode(weatherCode);
+                const theme = getWeatherTheme(temp, weatherInfo.condition.toLowerCase());
+                updateWeatherDisplay(temp, minTemp, maxTemp, weatherInfo.description, theme);
+                
+            } catch (error) {
+                console.error('Failed to fetch weather:', error);
+                // Fallback to default fine weather
+                updateWeatherDisplay(22, 18, 26, 'pleasant day', 'fine');
+            }
+        }
+
+        // Convert WMO weather codes to descriptions
+        // Reference: https://open-meteo.com/en/docs
+        function getWeatherInfoFromCode(code) {
+            const weatherCodes = {
+                0: { description: 'clear sky', condition: 'Clear' },
+                1: { description: 'mainly clear', condition: 'Clear' },
+                2: { description: 'partly cloudy', condition: 'Clouds' },
+                3: { description: 'overcast', condition: 'Clouds' },
+                45: { description: 'foggy', condition: 'Fog' },
+                48: { description: 'depositing rime fog', condition: 'Fog' },
+                51: { description: 'light drizzle', condition: 'Drizzle' },
+                53: { description: 'moderate drizzle', condition: 'Drizzle' },
+                55: { description: 'dense drizzle', condition: 'Drizzle' },
+                56: { description: 'light freezing drizzle', condition: 'Drizzle' },
+                57: { description: 'dense freezing drizzle', condition: 'Drizzle' },
+                61: { description: 'slight rain', condition: 'Rain' },
+                63: { description: 'moderate rain', condition: 'Rain' },
+                65: { description: 'heavy rain', condition: 'Rain' },
+                66: { description: 'light freezing rain', condition: 'Rain' },
+                67: { description: 'heavy freezing rain', condition: 'Rain' },
+                71: { description: 'slight snow fall', condition: 'Snow' },
+                73: { description: 'moderate snow fall', condition: 'Snow' },
+                75: { description: 'heavy snow fall', condition: 'Snow' },
+                77: { description: 'snow grains', condition: 'Snow' },
+                80: { description: 'slight rain showers', condition: 'Rain' },
+                81: { description: 'moderate rain showers', condition: 'Rain' },
+                82: { description: 'violent rain showers', condition: 'Rain' },
+                85: { description: 'slight snow showers', condition: 'Snow' },
+                86: { description: 'heavy snow showers', condition: 'Snow' },
+                95: { description: 'thunderstorm', condition: 'Thunderstorm' },
+                96: { description: 'thunderstorm with slight hail', condition: 'Thunderstorm' },
+                99: { description: 'thunderstorm with heavy hail', condition: 'Thunderstorm' }
+            };
+            
+            return weatherCodes[code] || { description: 'unknown', condition: 'Clear' };
+        }
+
+        // Test weather function for development
+        function testWeather(theme, temp) {
+            const descriptions = {
+                fine: 'clear sky',
+                hot: 'sunny and hot',
+                cold: 'clear and cold',
+                rain: 'light rain'
+            };
+            const minTemp = temp - 4;
+            const maxTemp = temp + 4;
+            updateWeatherDisplay(temp, minTemp, maxTemp, descriptions[theme], theme);
+        }
+
+        // Make testWeather available globally for the test buttons
+        window.testWeather = testWeather;
+        window.fetchWeather = fetchWeather;
+
         // Initialize the app
         function init() {
             loadState();
@@ -340,6 +553,12 @@
                 const column = createColumn(name, index);
                 container.appendChild(column);
             });
+            
+            // Fetch weather on load
+            fetchWeather();
+            
+            // Refresh weather every 30 minutes
+            setInterval(fetchWeather, 30 * 60 * 1000);
         }
 
         // Start the app when DOM is ready
