@@ -181,7 +181,31 @@
     </div>
     -->
 
-    <script>
+    <script type="module">
+        // ===================================================================
+        // FIREBASE SETUP
+        // ===================================================================
+        // Import Firebase SDKs (v9+ modular)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration - Replace with your own credentials
+        const firebaseConfig = {
+            apiKey: "AIzaSyA-Ip7ztUafSAFQgrJtRbqEvzxkUHleUF8",
+            authDomain: "morning-checklist-474ec.firebaseapp.com",
+            projectId: "morning-checklist-474ec",
+            storageBucket: "morning-checklist-474ec.firebasestorage.app",
+            messagingSenderId: "302141204153",
+            appId: "1:302141204153:web:53d3cef90f3080a1265d68"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        // ===================================================================
+
         // ===================================================================
         // CONFIGURATION - Easy to edit!
         // ===================================================================
@@ -225,34 +249,6 @@
             return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         }
 
-        // Load state from localStorage
-        function loadState() {
-            const savedData = localStorage.getItem('morningChecklist');
-            if (savedData) {
-                try {
-                    const parsed = JSON.parse(savedData);
-                    // Check if it's from today
-                    if (parsed.date === TODAY_KEY) {
-                        state = parsed.state || {};
-                    } else {
-                        // Different day, reset
-                        state = {};
-                        saveState();
-                    }
-                } catch (e) {
-                    state = {};
-                }
-            }
-        }
-
-        // Save state to localStorage
-        function saveState() {
-            localStorage.setItem('morningChecklist', JSON.stringify({
-                date: TODAY_KEY,
-                state: state
-            }));
-        }
-
         // Get state key for a task
         function getStateKey(name, taskText) {
             return `${name.toLowerCase()}-${taskText.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
@@ -264,23 +260,14 @@
             return state[key] === true;
         }
 
-        // Toggle task completion
-        function toggleTask(name, taskText, element, columnElement) {
+        // Toggle task completion (now updates Firestore)
+        async function toggleTask(name, taskText, element, columnElement) {
             const key = getStateKey(name, taskText);
-            state[key] = !state[key];
-            saveState();
+            const docRef = doc(db, 'checklists', TODAY_KEY);
+            const newValue = !state[key];
 
-            // Update UI
-            if (state[key]) {
-                element.classList.add('completed');
-                element.querySelector('.checkmark').classList.remove('hidden');
-            } else {
-                element.classList.remove('completed');
-                element.querySelector('.checkmark').classList.add('hidden');
-            }
-
-            // Check if column is complete
-            checkColumnCompletion(name, columnElement);
+            // Update Firestore - the onSnapshot listener will handle UI updates
+            await setDoc(docRef, { [key]: newValue }, { merge: true });
         }
 
         // Check if all tasks in a column are complete
@@ -539,26 +526,105 @@
             updateWeatherDisplay(temp, minTemp, maxTemp, descriptions[theme], theme);
         }
 
+        // Setup Firestore real-time listener
+        function setupFirestoreListener() {
+            const docRef = doc(db, 'checklists', TODAY_KEY);
+            
+            onSnapshot(docRef, async (docSnap) => {
+                if (docSnap.exists()) {
+                    // Document exists, load the state
+                    state = docSnap.data();
+                } else {
+                    // First time today, create empty document
+                    state = {};
+                    await setDoc(docRef, {});
+                }
+                
+                // Update the UI to reflect the state
+                updateUIFromState();
+            });
+        }
+
+        // Update UI based on current state
+        function updateUIFromState() {
+            CONFIG.names.forEach((name, index) => {
+                const columnElement = document.getElementById(`column-${name.toLowerCase()}`);
+                if (!columnElement) return;
+                
+                CONFIG.tasks.forEach((task) => {
+                    const key = getStateKey(name, task.text);
+                    const isCompleted = state[key] === true;
+                    
+                    // Find the task element in the DOM
+                    const tasksContainer = columnElement.querySelector('.tasks-scroll');
+                    if (!tasksContainer) return;
+                    
+                    // Find task by matching text content
+                    const taskElements = tasksContainer.querySelectorAll('.task-item');
+                    taskElements.forEach(taskElement => {
+                        const taskTextElement = taskElement.querySelector('.flex-1');
+                        if (taskTextElement && taskTextElement.textContent.trim() === task.text) {
+                            const checkmark = taskElement.querySelector('.checkmark');
+                            
+                            if (isCompleted) {
+                                taskElement.classList.add('completed');
+                                if (checkmark) checkmark.classList.remove('hidden');
+                            } else {
+                                taskElement.classList.remove('completed');
+                                if (checkmark) checkmark.classList.add('hidden');
+                            }
+                        }
+                    });
+                });
+                
+                // Re-check column completion
+                checkColumnCompletion(name, columnElement);
+            });
+        }
+
         // Make testWeather available globally for the test buttons
         window.testWeather = testWeather;
         window.fetchWeather = fetchWeather;
 
-        // Initialize the app
-        function init() {
-            loadState();
-            
-            const container = document.getElementById('columns-container');
-            
-            CONFIG.names.forEach((name, index) => {
-                const column = createColumn(name, index);
-                container.appendChild(column);
-            });
-            
-            // Fetch weather on load
-            fetchWeather();
-            
-            // Refresh weather every 30 minutes
-            setInterval(fetchWeather, 30 * 60 * 1000);
+        // Initialize the app (now async)
+        async function init() {
+            try {
+                // Sign in anonymously to Firebase
+                console.log('Attempting to sign in to Firebase...');
+                await signInAnonymously(auth);
+                console.log('✓ Signed in to Firebase anonymously');
+                
+                // Build the UI
+                const container = document.getElementById('columns-container');
+                
+                CONFIG.names.forEach((name, index) => {
+                    const column = createColumn(name, index);
+                    container.appendChild(column);
+                });
+                
+                // Setup Firestore listener after UI is built
+                console.log('Setting up Firestore listener...');
+                setupFirestoreListener();
+                
+                // Fetch weather on load
+                fetchWeather();
+                
+                // Refresh weather every 30 minutes
+                setInterval(fetchWeather, 30 * 60 * 1000);
+            } catch (error) {
+                console.error('❌ Error initializing app:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
+                
+                if (error.code === 'auth/configuration-not-found') {
+                    console.error('\n⚠️ SETUP REQUIRED:');
+                    console.error('1. Go to Firebase Console → Authentication');
+                    console.error('2. Enable Anonymous sign-in method');
+                    console.error('3. Refresh this page');
+                }
+                
+                alert('Firebase setup incomplete. Check console for details. See FIREBASE_SETUP.md for instructions.');
+            }
         }
 
         // Start the app when DOM is ready
