@@ -281,7 +281,7 @@
             // Children - 'id' is used for database keys, 'name' is displayed (can include emojis)
             children: [
                 { id: "rose", name: "Rose 🌹" },
-                { id: "lucy", name: "Lucy 🪿" },
+                { id: "lucy", name: "Lucy 🐻‍❄️" },
                 { id: "olive", name: "Olive 🦄" }
             ],
             tasks: [
@@ -338,38 +338,61 @@
             const key = getStateKey(childId, taskText);
             const docRef = doc(db, 'checklists', TODAY_KEY);
             const newValue = !state[key];
+            const updateData = { [key]: newValue };
+            const completionKey = `${childId}_completed_at`;
+
+            if (newValue === true) { // Task is being checked
+                const allTasksWillBeComplete = CONFIG.tasks.every(task =>
+                    (task.text === taskText) ? true : isTaskCompleted(childId, task.text)
+                );
+
+                if (allTasksWillBeComplete && !state[completionKey]) {
+                    updateData[completionKey] = new Date().toISOString();
+                }
+            } else { // Task is being unchecked
+                if (state[completionKey]) {
+                    // In Firestore, to delete a field, you use a special value
+                    // but for simplicity, we'll set it to null and filter it out later.
+                    updateData[completionKey] = null;
+                }
+            }
 
             // Update Firestore - the onSnapshot listener will handle UI updates
-            await setDoc(docRef, { [key]: newValue }, { merge: true });
+            await setDoc(docRef, updateData, { merge: true });
         }
 
-        // Check if all tasks in a column are complete
-        function checkColumnCompletion(childId, columnElement) {
-            const allComplete = CONFIG.tasks.every(task => isTaskCompleted(childId, task.text));
-            
-            const wasComplete = columnElement.classList.contains('column-complete');
-            
-            if (allComplete && !wasComplete) {
-                // Column just became complete - celebrate!
-                columnElement.classList.add('column-complete', 'pulse-animation');
-                
-                // Show completion badge
+        // Check column completion and award medals
+        function checkColumnCompletion() {
+            const MEDALS = ['🥇', '🥈', '🥉'];
+            const finishers = CONFIG.children
+                .map(child => ({ id: child.id, time: state[`${child.id}_completed_at`] }))
+                .filter(child => child.time)
+                .sort((a, b) => new Date(a.time) - new Date(b.time));
+
+            CONFIG.children.forEach(child => {
+                const columnElement = document.getElementById(`column-${child.id}`);
+                if (!columnElement) return;
+
+                const rank = finishers.findIndex(finisher => finisher.id === child.id);
+                const isComplete = rank !== -1;
+                const wasComplete = columnElement.classList.contains('column-complete');
                 const badge = columnElement.querySelector('.completion-badge');
-                badge.classList.remove('hidden');
-                
-                // Trigger confetti
-                triggerConfetti(columnElement);
-                
-                // Remove pulse animation after it completes
-                setTimeout(() => {
-                    columnElement.classList.remove('pulse-animation');
-                }, 500);
-            } else if (!allComplete && wasComplete) {
-                // Column became incomplete
-                columnElement.classList.remove('column-complete');
-                const badge = columnElement.querySelector('.completion-badge');
-                badge.classList.add('hidden');
-            }
+
+                if (isComplete) {
+                    badge.textContent = MEDALS[rank] || '✅';
+                    badge.classList.remove('hidden');
+                    columnElement.classList.add('column-complete');
+
+                    if (!wasComplete) {
+                        columnElement.classList.add('pulse-animation');
+                        triggerConfetti(columnElement);
+                        setTimeout(() => columnElement.classList.remove('pulse-animation'), 500);
+                    }
+                } else {
+                    badge.classList.add('hidden');
+                    columnElement.classList.remove('column-complete');
+                }
+            });
         }
 
         // Trigger confetti celebration
@@ -424,7 +447,7 @@
                     ✓
                 </div>
                 <div class="text-2xl flex-shrink-0">${task.emoji}</div>
-                <div class="flex-1 text-base font-semibold text-gray-700">
+                <div class="flex-1 text-lg font-semibold text-gray-700">
                     ${task.text}
                 </div>
             `;
@@ -446,7 +469,6 @@
             header.innerHTML = `
                 <h2 class="text-2xl font-bold ${colorScheme.text}">${child.name}</h2>
                 <div class="completion-badge hidden absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg">
-                    ✓
                 </div>
             `;
             column.appendChild(header);
@@ -477,9 +499,6 @@
             });
             
             column.appendChild(tasksContainer);
-            
-            // Check initial completion state
-            checkColumnCompletion(name, column);
             
             return column;
         }
@@ -649,10 +668,10 @@
                         }
                     });
                 });
-                
-                // Re-check column completion
-                checkColumnCompletion(child.id, columnElement);
             });
+
+            // Re-check column completion for all columns
+            checkColumnCompletion();
         }
 
         // Make testWeather available globally for the test buttons
