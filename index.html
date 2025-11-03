@@ -278,7 +278,12 @@
         // CONFIGURATION - Easy to edit!
         // ===================================================================
         const CONFIG = {
-            names: ["Rose", "Lucy", "Olive"],
+            // Children - 'id' is used for database keys, 'name' is displayed (can include emojis)
+            children: [
+                { id: "rose", name: "Rose 🌹" },
+                { id: "lucy", name: "Lucy 🪿" },
+                { id: "olive", name: "Olive 🦄" }
+            ],
             tasks: [
                 { text: "Get dressed", emoji: "👕" },
                 { text: "Eat breakfast (and clean up)", emoji: "🍳" },
@@ -300,11 +305,11 @@
         };
         // ===================================================================
 
-        // Color palette for each child
+        // Color palette for each child (Rose is purple, Lucy is blue, Olive is pink)
         const COLORS = [
-            { bg: 'bg-white', border: 'border-pink-400', hover: 'hover:bg-pink-50', text: 'text-pink-700', checkmark: 'bg-pink-500', columnBg: 'bg-pink-50/80' },
+            { bg: 'bg-white', border: 'border-purple-400', hover: 'hover:bg-purple-50', text: 'text-purple-700', checkmark: 'bg-purple-500', columnBg: 'bg-purple-50/80' },
             { bg: 'bg-white', border: 'border-blue-400', hover: 'hover:bg-blue-50', text: 'text-blue-700', checkmark: 'bg-blue-500', columnBg: 'bg-blue-50/80' },
-            { bg: 'bg-white', border: 'border-purple-400', hover: 'hover:bg-purple-50', text: 'text-purple-700', checkmark: 'bg-purple-500', columnBg: 'bg-purple-50/80' }
+            { bg: 'bg-white', border: 'border-pink-400', hover: 'hover:bg-pink-50', text: 'text-pink-700', checkmark: 'bg-pink-500', columnBg: 'bg-pink-50/80' }
         ];
 
         // State management
@@ -317,20 +322,20 @@
             return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         }
 
-        // Get state key for a task
-        function getStateKey(name, taskText) {
-            return `${name.toLowerCase()}-${taskText.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
+        // Get state key for a task (uses child id, not display name)
+        function getStateKey(childId, taskText) {
+            return `${childId.toLowerCase()}-${taskText.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
         }
 
         // Check if task is completed
-        function isTaskCompleted(name, taskText) {
-            const key = getStateKey(name, taskText);
+        function isTaskCompleted(childId, taskText) {
+            const key = getStateKey(childId, taskText);
             return state[key] === true;
         }
 
         // Toggle task completion (now updates Firestore)
-        async function toggleTask(name, taskText, element, columnElement) {
-            const key = getStateKey(name, taskText);
+        async function toggleTask(childId, taskText, element, columnElement) {
+            const key = getStateKey(childId, taskText);
             const docRef = doc(db, 'checklists', TODAY_KEY);
             const newValue = !state[key];
 
@@ -339,8 +344,8 @@
         }
 
         // Check if all tasks in a column are complete
-        function checkColumnCompletion(name, columnElement) {
-            const allComplete = CONFIG.tasks.every(task => isTaskCompleted(name, task.text));
+        function checkColumnCompletion(childId, columnElement) {
+            const allComplete = CONFIG.tasks.every(task => isTaskCompleted(childId, task.text));
             
             const wasComplete = columnElement.classList.contains('column-complete');
             
@@ -408,8 +413,8 @@
         }
 
         // Create a task element
-        function createTaskElement(name, task, colorScheme) {
-            const isCompleted = isTaskCompleted(name, task.text);
+        function createTaskElement(childId, childName, task, colorScheme) {
+            const isCompleted = isTaskCompleted(childId, task.text);
             
             const taskDiv = document.createElement('div');
             taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2 cursor-pointer ${colorScheme.hover} flex items-center gap-2 ${isCompleted ? 'completed' : ''}`;
@@ -428,18 +433,18 @@
         }
 
         // Create a column for a child
-        function createColumn(name, index) {
+        function createColumn(child, index) {
             const colorScheme = COLORS[index % COLORS.length];
             
             const column = document.createElement('div');
             column.className = `flex-1 ${colorScheme.columnBg} backdrop-blur-sm border-3 ${colorScheme.border} rounded-2xl p-2.5 shadow-xl flex flex-col transition-all duration-300`;
-            column.id = `column-${name.toLowerCase()}`;
+            column.id = `column-${child.id}`;
             
             // Header
             const header = document.createElement('div');
             header.className = 'mb-1.5 text-center relative';
             header.innerHTML = `
-                <h2 class="text-2xl font-bold ${colorScheme.text}">${name}</h2>
+                <h2 class="text-2xl font-bold ${colorScheme.text}">${child.name}</h2>
                 <div class="completion-badge hidden absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg">
                     ✓
                 </div>
@@ -451,11 +456,11 @@
             tasksContainer.className = 'flex-1 space-y-1.5 tasks-scroll';
             
             CONFIG.tasks.forEach(task => {
-                const taskElement = createTaskElement(name, task, colorScheme);
+                const taskElement = createTaskElement(child.id, child.name, task, colorScheme);
                 taskElement.addEventListener('click', (e) => {
                     // Prevent click during scroll
                     if (e.target.closest('.tasks-scroll').dataset.scrolling !== 'true') {
-                        toggleTask(name, task.text, taskElement, column);
+                        toggleTask(child.id, task.text, taskElement, column);
                     }
                 });
                 tasksContainer.appendChild(taskElement);
@@ -615,12 +620,12 @@
 
         // Update UI based on current state
         function updateUIFromState() {
-            CONFIG.names.forEach((name, index) => {
-                const columnElement = document.getElementById(`column-${name.toLowerCase()}`);
+            CONFIG.children.forEach((child, index) => {
+                const columnElement = document.getElementById(`column-${child.id}`);
                 if (!columnElement) return;
                 
                 CONFIG.tasks.forEach((task) => {
-                    const key = getStateKey(name, task.text);
+                    const key = getStateKey(child.id, task.text);
                     const isCompleted = state[key] === true;
                     
                     // Find the task element in the DOM
@@ -646,7 +651,7 @@
                 });
                 
                 // Re-check column completion
-                checkColumnCompletion(name, columnElement);
+                checkColumnCompletion(child.id, columnElement);
             });
         }
 
@@ -665,8 +670,8 @@
                 // Build the UI
                 const container = document.getElementById('columns-container');
                 
-                CONFIG.names.forEach((name, index) => {
-                    const column = createColumn(name, index);
+                CONFIG.children.forEach((child, index) => {
+                    const column = createColumn(child, index);
                     container.appendChild(column);
                 });
                 
