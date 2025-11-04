@@ -212,6 +212,11 @@
                 <h1 class="text-2xl font-bold text-gray-800 drop-shadow-sm">🌅 Morning Checklist</h1>
             </div>
             
+            <!-- Clock -->
+            <div id="clock-display" class="hidden md:block flex-grow text-center">
+                <span id="clock-time" class="text-3xl font-bold text-gray-700 drop-shadow-sm"></span>
+            </div>
+
             <!-- Weather Display -->
             <div id="weather-display" class="flex-shrink-0">
                 <div class="bg-white/80 backdrop-blur-sm rounded-xl px-4 py-1.5 shadow-lg">
@@ -675,6 +680,22 @@
             checkColumnCompletion();
         }
 
+        // Clock functionality
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const formattedHours = (hours % 12) || 12; // Convert to 12-hour format
+
+            const timeString = `${formattedHours}:${minutes}:${seconds} ${ampm}`;
+            const clockElement = document.getElementById('clock-time');
+            if (clockElement) {
+                clockElement.textContent = timeString;
+            }
+        }
+
         // Make testWeather available globally for the test buttons
         window.testWeather = testWeather;
         window.fetchWeather = fetchWeather;
@@ -709,6 +730,10 @@
                 // Fetch weather on load
                 fetchWeather();
                 
+                // Update clock every second
+                updateClock();
+                setInterval(updateClock, 1000);
+
                 // Refresh weather every 30 minutes
                 setInterval(fetchWeather, 30 * 60 * 1000);
             } catch (error) {
