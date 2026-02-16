@@ -297,10 +297,21 @@
                 { text: "Tidy room", emoji: "🧹" },
                 { text: "Laundry basket", emoji: "🧺" },
                 { text: "Piano practice", emoji: "🎹" },
-                { text: "Individual chores", emoji: "✨" },
                 { text: "Pack bag", emoji: "🎒" },
                 { text: "Socks & shoes", emoji: "👟" }
             ],
+            // Child-specific tasks (individual chores)
+            childSpecificTasks: {
+                rose: [
+                    { text: "Bin bags", emoji: "🗑️" }
+                ],
+                lucy: [
+                    { text: "Pool chores", emoji: "🏊" }
+                ],
+                olive: [
+                    { text: "Cat food and water", emoji: "🐈" }
+                ]
+            },
             // Weather Configuration
             weather: {
                 // Location coordinates (Sydney, Australia by default) - change to your location
@@ -333,6 +344,13 @@
             return `${childId.toLowerCase()}-${taskText.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
         }
 
+        // Get all tasks for a specific child (shared tasks + child-specific tasks)
+        function getTasksForChild(childId) {
+            const sharedTasks = [...CONFIG.tasks];
+            const childTasks = CONFIG.childSpecificTasks[childId] || [];
+            return [...sharedTasks, ...childTasks];
+        }
+
         // Check if task is completed
         function isTaskCompleted(childId, taskText) {
             const key = getStateKey(childId, taskText);
@@ -348,7 +366,8 @@
             const completionKey = `${childId}_completed_at`;
 
             if (newValue === true) { // Task is being checked
-                const allTasksWillBeComplete = CONFIG.tasks.every(task =>
+                const childTasks = getTasksForChild(childId);
+                const allTasksWillBeComplete = childTasks.every(task =>
                     (task.text === taskText) ? true : isTaskCompleted(childId, task.text)
                 );
 
@@ -483,7 +502,8 @@
             const tasksContainer = document.createElement('div');
             tasksContainer.className = 'flex-1 space-y-1.5 tasks-scroll';
             
-            CONFIG.tasks.forEach(task => {
+            const childTasks = getTasksForChild(child.id);
+            childTasks.forEach(task => {
                 const taskElement = createTaskElement(child.id, child.name, task, colorScheme);
                 taskElement.addEventListener('click', (e) => {
                     // Prevent click during scroll
@@ -649,7 +669,8 @@
                 const columnElement = document.getElementById(`column-${child.id}`);
                 if (!columnElement) return;
                 
-                CONFIG.tasks.forEach((task) => {
+                const childTasks = getTasksForChild(child.id);
+                childTasks.forEach((task) => {
                     const key = getStateKey(child.id, task.text);
                     const isCompleted = state[key] === true;
                     
