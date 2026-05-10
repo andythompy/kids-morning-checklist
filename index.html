@@ -328,6 +328,7 @@
             // that keeps Google Calendar credentials server-side and returns Google Calendar
             // Events API JSON for the shared "Thompson" calendar.
             calendar: {
+                // Must be a full https:// URL so credentials are never embedded in this static page.
                 endpoint: "",
                 calendarName: "Thompson",
                 daysToShow: 3
@@ -550,7 +551,10 @@
 
             const header = document.createElement('div');
             header.className = 'mb-1.5 text-center relative';
-            header.innerHTML = '<h2 class="text-2xl font-bold text-amber-700">📅 What&rsquo;s On?</h2>';
+            const heading = document.createElement('h2');
+            heading.className = 'text-2xl font-bold text-amber-700';
+            heading.textContent = "📅 What's On?";
+            header.appendChild(heading);
             column.appendChild(header);
 
             const eventsContainer = document.createElement('div');
@@ -701,7 +705,7 @@
         }
 
         function appendCalendarQueryParams(endpoint, timeMin, timeMax) {
-            const url = new URL(endpoint, window.location.href);
+            const url = new URL(endpoint);
             url.searchParams.set('timeMin', timeMin.toISOString());
             url.searchParams.set('timeMax', timeMax.toISOString());
             url.searchParams.set('calendarName', CONFIG.calendar.calendarName);
@@ -747,24 +751,29 @@
         function normalizeCalendarEvents(data) {
             const items = Array.isArray(data) ? data : (data.items || data.events || []);
             return items
-                .map(event => ({
-                    title: event.summary || event.title || '(No title)',
-                    location: event.location || '',
-                    start: event.start,
-                    end: event.end,
-                    startTime: event.startTime,
-                    endTime: event.endTime,
-                    date: event.date,
-                    allDay: event.allDay
-                }))
+                .map(event => {
+                    const allDay = isAllDayEvent(event);
+                    const startValue = getEventStartValue(event);
+                    const startDate = parseCalendarDate(startValue, allDay);
+
+                    return {
+                        title: event.summary || event.title || '(No title)',
+                        location: event.location || '',
+                        start: event.start,
+                        end: event.end,
+                        startTime: event.startTime,
+                        endTime: event.endTime,
+                        date: event.date,
+                        allDay,
+                        startDate,
+                        dayKey: allDay && /^\d{4}-\d{2}-\d{2}$/.test(startValue) ? startValue : (startDate ? getCalendarDateKey(startDate) : '')
+                    };
+                })
                 .filter(event => {
-                    const start = parseCalendarDate(getEventStartValue(event), isAllDayEvent(event));
-                    return start && !Number.isNaN(start.getTime());
+                    return event.startDate && !Number.isNaN(event.startDate.getTime());
                 })
                 .sort((a, b) => {
-                    const aStart = parseCalendarDate(getEventStartValue(a), isAllDayEvent(a));
-                    const bStart = parseCalendarDate(getEventStartValue(b), isAllDayEvent(b));
-                    return aStart - bStart;
+                    return a.startDate - b.startDate;
                 });
         }
 
@@ -797,8 +806,7 @@
             }
 
             events.forEach(event => {
-                const start = parseCalendarDate(getEventStartValue(event), isAllDayEvent(event));
-                const day = eventsByDay.get(getCalendarDateKey(start));
+                const day = eventsByDay.get(event.dayKey);
                 if (day) {
                     day.events.push(event);
                 }
