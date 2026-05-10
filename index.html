@@ -329,8 +329,7 @@
             // Events API JSON for the shared "Thompson" calendar.
             calendar: {
                 // Must be a full https:// URL so credentials are never embedded in this static page.
-                // Example: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
-                endpoint: "",
+                endpoint: "", // Example: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
                 calendarName: "Thompson",
                 daysToShow: 3
             }
@@ -707,13 +706,22 @@
 
         function appendCalendarQueryParams(endpoint, timeMin, timeMax) {
             const url = new URL(endpoint);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                throw new Error('Calendar endpoint must be an HTTP(S) URL');
+            }
+
             url.searchParams.set('timeMin', timeMin.toISOString());
             url.searchParams.set('timeMax', timeMax.toISOString());
             url.searchParams.set('calendarName', CONFIG.calendar.calendarName);
             return url.toString();
         }
 
-        // Supports Google Calendar Events API objects and simple proxy objects.
+        function getCalendarDaysToShow() {
+            return Math.min(Math.max(CONFIG.calendar.daysToShow, 1), 7);
+        }
+
+        // Supports Google Calendar Events API objects plus simple proxy objects:
+        // { title, startTime, endTime, date, allDay, location }.
         function getEventStartValue(event) {
             return event.start?.dateTime || event.start?.date || event.startTime || event.date;
         }
@@ -730,8 +738,12 @@
             if (!value) return null;
             if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
                 const [year, month, day] = value.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                const isValidDate = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+                if (!isValidDate) return null;
+
                 // All-day event dates are calendar dates, so keep them in the display's local day.
-                return new Date(year, month - 1, day);
+                return date;
             }
             return new Date(value);
         }
@@ -806,7 +818,7 @@
             const today = getStartOfDay(new Date());
             const eventsByDay = new Map();
 
-            for (let offset = 0; offset < CONFIG.calendar.daysToShow; offset += 1) {
+            for (let offset = 0; offset < getCalendarDaysToShow(); offset += 1) {
                 const date = addDays(today, offset);
                 eventsByDay.set(getCalendarDateKey(date), {
                     date,
@@ -869,13 +881,14 @@
 
         async function fetchCalendarEvents() {
             if (!CONFIG.calendar.endpoint) {
+                console.warn('Calendar endpoint is not configured.');
                 renderCalendarMessage('Calendar not set up yet.');
                 return;
             }
 
             try {
                 const timeMin = getStartOfDay(new Date());
-                const timeMax = addDays(timeMin, CONFIG.calendar.daysToShow);
+                const timeMax = addDays(timeMin, getCalendarDaysToShow());
                 const response = await fetch(appendCalendarQueryParams(CONFIG.calendar.endpoint, timeMin, timeMax));
 
                 if (!response.ok) {
