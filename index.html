@@ -324,9 +324,9 @@
                 lon: 144.336537
             },
             // Calendar Configuration
-            // Use a backend/proxy endpoint (for example, Google Apps Script or a Firebase Function)
-            // that keeps Google Calendar credentials server-side and returns Google Calendar
-            // Events API JSON for the shared "Thompson" calendar.
+            // Requires a server-side proxy (so Google credentials never live in this static page).
+            // See CALENDAR_SETUP.md for a copy-paste Google Apps Script that does this.
+            // Until `endpoint` is set, the calendar column will show "Calendar not set up yet."
             calendar: {
                 // Must be a full https:// URL so credentials are never embedded in this static page.
                 endpoint: "", // Example: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
