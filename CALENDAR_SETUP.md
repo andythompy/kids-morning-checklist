@@ -8,17 +8,23 @@ The easiest (and free) way to host that proxy is **Google Apps Script**, because
 
 > Until you complete this setup, the calendar column will simply show **"Calendar not set up yet."** — the rest of the app (checklists, weather) works fine without it.
 
+> ⚠️ **Read [Security considerations](#security-considerations) before pointing this at a personal calendar.** With the default "Anyone can access" Apps Script deployment, the contents of the chosen calendar are effectively public. The recommended setup is to use a **dedicated calendar** that only contains events safe to display.
+
 ---
 
-## Step 1: Make sure the calendar is shared with you
+## Step 1: Pick (or create) a calendar to expose
 
-1. The shared calendar must be visible in [Google Calendar](https://calendar.google.com/) under **My calendars** or **Other calendars** for the Google account you'll use to create the Apps Script.
-2. Note the exact display name (default expected by the app: `Thompson`). It must match `CONFIG.calendar.calendarName` in `index.html`.
+The proxy will return *every* event in this calendar to anyone who hits the URL (see [Security considerations](#security-considerations) — there is no practical way to make the URL secret because it ships in the public `index.html`). So:
+
+- **Recommended:** in Google Calendar, click **+ → Create new calendar** and make a calendar called e.g. `Thompson` or `Family Dashboard`. Add only the events you're happy to see on a kitchen display. Share it with anyone in the family who should be able to add events.
+- **Not recommended:** pointing this at your main personal calendar.
+
+The calendar must be visible in [Google Calendar](https://calendar.google.com/) under **My calendars** or **Other calendars** for the Google account you'll use to create the Apps Script. The display name must match `CONFIG.calendar.calendarName` in `index.html` exactly (default: `Thompson`).
 
 ## Step 2: Create the Apps Script
 
 1. Go to <https://script.google.com/> and click **New project**.
-2. Replace the contents of `Code.gs` with the script below.
+2. Replace the contents of `Code.gs` with the script below. (It deliberately omits `description` and `attendees`, and only returns `location` if you leave the line in — strip that line if you don't want locations exposed.)
 3. Click the **Save** icon and give the project a name (e.g. `Morning Checklist Calendar Proxy`).
 
 ```javascript
@@ -45,6 +51,7 @@ function doGet(e) {
       const allDay = event.isAllDayEvent();
       return {
         title: event.getTitle(),
+        // Remove the next line if you don't want event locations exposed via the URL.
         location: event.getLocation() || '',
         allDay: allDay,
         startTime: event.getStartTime().toISOString(),
@@ -119,6 +126,32 @@ The frontend just expects JSON in either of these shapes, so any backend works:
 ```
 
 So if you'd rather host the proxy as a Firebase Cloud Function, Cloudflare Worker, etc., return either shape and point `CONFIG.calendar.endpoint` at it.
+
+## Security considerations
+
+**Short version:** with this architecture, the contents of the chosen calendar are effectively public. Don't point it at a calendar that contains things you wouldn't want a stranger to read.
+
+**Why:**
+
+- The Apps Script web app is deployed as **"Who has access: Anyone"**. That's required, because the static GitHub Pages page has no Google identity to authenticate as.
+- The `/exec` URL itself is **not secret**: it's hard-coded into `index.html`, which is in the public GitHub repo and served by GitHub Pages. Anyone can read it from page source or DevTools → Network on the Nest Hub.
+- Adding a `?token=...` shared secret to the URL **does not help**, because the token would also have to live in the public `index.html`.
+- Referer/Origin checking in the script is trivially spoofable and not a real defence.
+
+**What the script *does* protect against:**
+
+- Writing to the calendar (read-only via `getEvents`).
+- Reading any other calendar on your Google account (only `getCalendarsByName(calendarName)` is called, so the only calendar exposed is the one whose name matches `CONFIG.calendar.calendarName`).
+- Account compromise (the script runs as you on Google's infrastructure; your credentials are never exposed).
+
+**Recommended mitigations, in order of effort:**
+
+1. **Use a dedicated calendar** (see Step 1). This is the single most effective thing — it shrinks the blast radius from "my whole life" to "events I deliberately put on the family dashboard".
+2. **Strip sensitive fields** in the script. The example already omits descriptions and attendees; remove the `location` line too if locations are sensitive. The frontend handles a missing `location` gracefully.
+3. **Avoid putting personally identifiable details in event titles** on the dashboard calendar (e.g. `"Doctor — Dr Smith re: <condition>"` → `"Appointment"`).
+4. **Long-term: Firebase Cloud Function + App Check.** Replace Apps Script with a Function that requires a Firebase App Check token. Only your deployed page can mint a valid token, so random visitors to the `/exec` URL get rejected. This is the proper authenticated-proxy pattern but is significantly more setup; not covered here.
+
+If you ever suspect the URL has been abused, go to **Deploy → Manage deployments → Archive** in the Apps Script editor; that immediately invalidates the URL. Then create a new deployment and update `CONFIG.calendar.endpoint`.
 
 ## Troubleshooting
 

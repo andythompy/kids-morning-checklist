@@ -706,8 +706,8 @@
 
         function appendCalendarQueryParams(endpoint, timeMin, timeMax) {
             const url = new URL(endpoint);
-            if (!['http:', 'https:'].includes(url.protocol)) {
-                throw new Error('Calendar endpoint must be an HTTP(S) URL');
+            if (url.protocol !== 'https:') {
+                throw new Error('Calendar endpoint must be an HTTPS URL');
             }
 
             url.searchParams.set('timeMin', timeMin.toISOString());
