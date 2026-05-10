@@ -329,6 +329,7 @@
             // Events API JSON for the shared "Thompson" calendar.
             calendar: {
                 // Must be a full https:// URL so credentials are never embedded in this static page.
+                // Example: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
                 endpoint: "",
                 calendarName: "Thompson",
                 daysToShow: 3
@@ -729,6 +730,7 @@
             if (!value) return null;
             if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
                 const [year, month, day] = value.split('-').map(Number);
+                // All-day event dates are calendar dates, so keep them in the display's local day.
                 return new Date(year, month - 1, day);
             }
             return new Date(value);
@@ -746,6 +748,14 @@
             if (!end || Number.isNaN(end.getTime())) return startText;
 
             return `${startText} - ${end.toLocaleTimeString(undefined, timeOptions)}`;
+        }
+
+        function getEventDayKey(startValue, startDate, allDay) {
+            if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(startValue)) {
+                return startValue;
+            }
+
+            return startDate ? getCalendarDateKey(startDate) : '';
         }
 
         function normalizeCalendarEvents(data) {
@@ -766,7 +776,7 @@
                         date: event.date,
                         allDay,
                         startDate,
-                        dayKey: allDay && /^\d{4}-\d{2}-\d{2}$/.test(startValue) ? startValue : (startDate ? getCalendarDateKey(startDate) : '')
+                        dayKey: getEventDayKey(startValue, startDate, allDay)
                     };
                 })
                 .filter(event => {
@@ -806,6 +816,7 @@
             }
 
             events.forEach(event => {
+                // The proxy may return boundary events; only render the configured visible days.
                 const day = eventsByDay.get(event.dayKey);
                 if (day) {
                     day.events.push(event);
