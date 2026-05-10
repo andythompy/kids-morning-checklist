@@ -329,7 +329,6 @@
             // Events API JSON for the shared "Thompson" calendar.
             calendar: {
                 endpoint: "",
-                accountEmail: "andythompy@gmail.com",
                 calendarName: "Thompson",
                 daysToShow: 3
             }
@@ -546,7 +545,7 @@
         // Create the "What's On?" calendar column
         function createCalendarColumn() {
             const column = document.createElement('div');
-            column.className = 'flex-1 bg-amber-50/80 backdrop-blur-sm border-3 border-amber-400 rounded-2xl p-2.5 shadow-xl flex flex-col transition-all duration-300';
+            column.className = 'flex-1 bg-amber-50/80 backdrop-blur-sm border-4 border-amber-400 rounded-2xl p-2.5 shadow-xl flex flex-col transition-all duration-300';
             column.id = 'column-calendar';
 
             const header = document.createElement('div');
@@ -706,10 +705,10 @@
             url.searchParams.set('timeMin', timeMin.toISOString());
             url.searchParams.set('timeMax', timeMax.toISOString());
             url.searchParams.set('calendarName', CONFIG.calendar.calendarName);
-            url.searchParams.set('accountEmail', CONFIG.calendar.accountEmail);
             return url.toString();
         }
 
+        // Supports Google Calendar Events API objects and simple proxy objects.
         function getEventStartValue(event) {
             return event.start?.dateTime || event.start?.date || event.startTime || event.date;
         }
@@ -745,7 +744,7 @@
             return `${startText} - ${end.toLocaleTimeString(undefined, timeOptions)}`;
         }
 
-        function normaliseCalendarEvents(data) {
+        function normalizeCalendarEvents(data) {
             const items = Array.isArray(data) ? data : (data.items || data.events || []);
             return items
                 .map(event => ({
@@ -851,7 +850,7 @@
 
         async function fetchCalendarEvents() {
             if (!CONFIG.calendar.endpoint) {
-                renderCalendarMessage('Calendar endpoint not configured. Add a server-side Google Calendar proxy URL in CONFIG.calendar.endpoint.');
+                renderCalendarMessage('Calendar not set up yet.');
                 return;
             }
 
@@ -865,7 +864,7 @@
                 }
 
                 const data = await response.json();
-                renderCalendarEvents(normaliseCalendarEvents(data));
+                renderCalendarEvents(normalizeCalendarEvents(data));
             } catch (error) {
                 console.error('Failed to fetch calendar:', error);
                 renderCalendarMessage('Calendar could not be loaded.', true);
