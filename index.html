@@ -201,6 +201,27 @@
         @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
             /* Keep desktop layout, just slightly smaller */
         }
+
+        /*
+         * Chromecast with Google TV (1280x720) via DashCast.
+         * Default scaling clips checklist items at the bottom.
+         * Scale #app down to 75% so more content fits, while still filling
+         * the full screen. Targeted by exact viewport size so the Nest Hub
+         * Max (1280x800) is not affected.
+         * Alternative if this looks blurry: replace the transform/width/height
+         * lines below with a single line: zoom: 0.75;
+         */
+        @media (width: 1280px) and (height: 720px) {
+            #app {
+                position: absolute;
+                top: 0;
+                left: 50%;
+                width: 133.3333vw;   /* 100 / 0.75 to fill horizontally after scale */
+                height: 133.3333vh;  /* 100 / 0.75 to fill vertically after scale */
+                transform-origin: top center;
+                transform: translateX(-50%) scale(0.75);
+            }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-4">
