@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>Morning Checklist</title>
     
     <!-- Tailwind CSS from CDN -->
@@ -327,6 +328,11 @@
             // Requires a server-side proxy (so Google credentials never live in this static page).
             // See CALENDAR_SETUP.md for a copy-paste Google Apps Script that does this.
             // Until `endpoint` is set, the calendar column will show "Calendar not set up yet."
+            //
+            // Optional token gating: bookmark the page as https://yoursite/?c=YOUR_SECRET
+            // The token is read from the URL at runtime and forwarded to the proxy.
+            // It is never hard-coded here, so the public repo source reveals nothing useful.
+            // See CALENDAR_SETUP.md § "Token gating" for the Apps Script side.
             calendar: {
                 // Must be a full https:// URL so credentials are never embedded in this static page.
                 endpoint: "", // Example: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
@@ -682,6 +688,12 @@
         }
 
         // Calendar functionality
+
+        // Read the optional calendar token from the page URL (?c=...).
+        // This is never hard-coded in the source — it only exists in the
+        // bookmarked URL on the Nest Hub and the Apps Script constant.
+        const CALENDAR_TOKEN = new URLSearchParams(window.location.search).get('c') || '';
+
         function addDays(date, days) {
             const nextDate = new Date(date);
             nextDate.setDate(nextDate.getDate() + days);
@@ -713,6 +725,9 @@
             url.searchParams.set('timeMin', timeMin.toISOString());
             url.searchParams.set('timeMax', timeMax.toISOString());
             url.searchParams.set('calendarName', CONFIG.calendar.calendarName);
+            if (CALENDAR_TOKEN) {
+                url.searchParams.set('c', CALENDAR_TOKEN);
+            }
             return url.toString();
         }
 

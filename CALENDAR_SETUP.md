@@ -30,25 +30,42 @@ The calendar must be visible in [Google Calendar](https://calendar.google.com/) 
 ```javascript
 // Returns events from a named Google Calendar as JSON.
 // Required query params: timeMin, timeMax, calendarName
-// Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson
+// Optional query param:  c (shared token — see "Token gating" below)
+// Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson&c=k7q2x9mz
+//
+// ── Token gating (optional) ──────────────────────────────────────────
+// Set SHARED_TOKEN to a random string (e.g. "k7q2x9mz") and bookmark
+// the checklist page as  https://yoursite/?c=k7q2x9mz
+// The page reads "c" from the URL at runtime and forwards it here.
+// Because the token only exists in the bookmark and in this constant,
+// it never appears in the public GitHub repo.
+// Leave SHARED_TOKEN as "" to allow unauthenticated access (old behaviour).
+var SHARED_TOKEN = "";   // ← put your random string here, or leave "" to disable
+
 function doGet(e) {
   try {
-    const params = (e && e.parameter) || {};
-    const calendarName = params.calendarName;
-    const timeMin = params.timeMin ? new Date(params.timeMin) : null;
-    const timeMax = params.timeMax ? new Date(params.timeMax) : null;
+    var params = (e && e.parameter) || {};
+
+    // ── Token check ──────────────────────────────────────────────────
+    if (SHARED_TOKEN && params.c !== SHARED_TOKEN) {
+      return jsonResponse({ error: "forbidden" });
+    }
+
+    var calendarName = params.calendarName;
+    var timeMin = params.timeMin ? new Date(params.timeMin) : null;
+    var timeMax = params.timeMax ? new Date(params.timeMax) : null;
 
     if (!calendarName || !timeMin || !timeMax) {
       return jsonResponse({ error: 'Missing timeMin, timeMax or calendarName' });
     }
 
-    const matches = CalendarApp.getCalendarsByName(calendarName);
+    var matches = CalendarApp.getCalendarsByName(calendarName);
     if (matches.length === 0) {
       return jsonResponse({ error: 'Calendar not found: ' + calendarName });
     }
 
-    const events = matches[0].getEvents(timeMin, timeMax).map(function (event) {
-      const allDay = event.isAllDayEvent();
+    var events = matches[0].getEvents(timeMin, timeMax).map(function (event) {
+      var allDay = event.isAllDayEvent();
       return {
         title: event.getTitle(),
         // Remove the next line if you don't want event locations exposed via the URL.
@@ -129,16 +146,33 @@ So if you'd rather host the proxy as a Firebase Cloud Function, Cloudflare Worke
 
 ## Security considerations
 
-**Short version:** with this architecture, the contents of the chosen calendar are effectively public. Don't point it at a calendar that contains things you wouldn't want a stranger to read.
+**Short version:** with this architecture, the contents of the chosen calendar are effectively public *unless* you enable token gating (see below). Don't point it at a calendar that contains things you wouldn't want a stranger to read.
 
-**Why:**
+**Why the endpoint URL alone is not secret:**
 
 - The Apps Script web app is deployed as **"Who has access: Anyone"**. That's required, because the static GitHub Pages page has no Google identity to authenticate as.
 - The `/exec` URL itself is **not secret**: it's hard-coded into `index.html`, which is in the public GitHub repo and served by GitHub Pages. Anyone can read it from page source or DevTools → Network on the Nest Hub.
-- Adding a `?token=...` shared secret to the URL **does not help**, because the token would also have to live in the public `index.html`.
 - Referer/Origin checking in the script is trivially spoofable and not a real defence.
 
-**What the script *does* protect against:**
+### Token gating (recommended)
+
+You can add a lightweight shared secret that stops crawlers and casual visitors from getting calendar data:
+
+1. **Pick a random string** (e.g. `k7q2x9mz` — don't use a dictionary word).
+2. **In the Apps Script**, set `var SHARED_TOKEN = "k7q2x9mz";` at the top of `Code.gs` and redeploy (Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy).
+3. **Bookmark the checklist page** on your Nest Hub as `https://yoursite/?c=k7q2x9mz`.
+
+The page reads `c` from the URL at runtime and forwards it to the proxy. Because the token only exists in two places — the Nest Hub bookmark and the Apps Script constant — it **never appears in the public GitHub repo**. Anyone who finds your `/exec` URL in the source code still can't use it without the token.
+
+**What this does NOT protect against:**
+
+- Someone who can see the Nest Hub's address bar can read the token from the URL.
+- If the page ever loads a third-party resource that honours Referer headers, the token could leak. A `<meta name="referrer" content="no-referrer">` tag is already included in `index.html` to prevent this.
+- Browser history/sync may store the bookmarked URL (including the token) in your Google account.
+
+**If the token leaks:** change `SHARED_TOKEN` in the Apps Script, redeploy, and update the bookmark. The old token stops working immediately.
+
+**What the script *does* protect against (with or without the token):**
 
 - Writing to the calendar (read-only via `getEvents`).
 - Reading any other calendar on your Google account (only `getCalendarsByName(calendarName)` is called, so the only calendar exposed is the one whose name matches `CONFIG.calendar.calendarName`).
@@ -146,10 +180,11 @@ So if you'd rather host the proxy as a Firebase Cloud Function, Cloudflare Worke
 
 **Recommended mitigations, in order of effort:**
 
-1. **Use a dedicated calendar** (see Step 1). This is the single most effective thing — it shrinks the blast radius from "my whole life" to "events I deliberately put on the family dashboard".
-2. **Strip sensitive fields** in the script. The example already omits descriptions and attendees; remove the `location` line too if locations are sensitive. The frontend handles a missing `location` gracefully.
-3. **Avoid putting personally identifiable details in event titles** on the dashboard calendar (e.g. `"Doctor — Dr Smith re: <condition>"` → `"Appointment"`).
-4. **Long-term: Firebase Cloud Function + App Check.** Replace Apps Script with a Function that requires a Firebase App Check token. Only your deployed page can mint a valid token, so random visitors to the `/exec` URL get rejected. This is the proper authenticated-proxy pattern but is significantly more setup; not covered here.
+1. **Enable token gating** (above). This stops automated scraping and casual visitors.
+2. **Use a dedicated calendar** (see Step 1). This shrinks the blast radius from "my whole life" to "events I deliberately put on the family dashboard".
+3. **Strip sensitive fields** in the script. The example already omits descriptions and attendees; remove the `location` line too if locations are sensitive. The frontend handles a missing `location` gracefully.
+4. **Avoid putting personally identifiable details in event titles** on the dashboard calendar (e.g. `"Doctor — Dr Smith re: <condition>"` → `"Appointment"`).
+5. **Long-term: Firebase Cloud Function + App Check.** Replace Apps Script with a Function that requires a Firebase App Check token. Only your deployed page can mint a valid token, so random visitors to the `/exec` URL get rejected. This is the proper authenticated-proxy pattern but is significantly more setup; not covered here.
 
 If you ever suspect the URL has been abused, go to **Deploy → Manage deployments → Archive** in the Apps Script editor; that immediately invalidates the URL. Then create a new deployment and update `CONFIG.calendar.endpoint`.
 
