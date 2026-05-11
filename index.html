@@ -203,17 +203,16 @@
         }
 
         /*
-         * Chromecast with Google TV (1280x720) via DashCast.
-         * Default scaling clips checklist items at the bottom.
-         * Use `zoom` to shrink the app to 75% so more content fits while
-         * still filling the screen. `zoom` reflows naturally and avoids the
-         * subpixel blur of `transform: scale`. Chromium (Chromecast) supports
-         * it. Targeted by exact viewport so Nest Hub Max (1280x800) is not
-         * affected.
+         * Chromecast with Google TV (1280x720 logical, DPR 2.0) via DashCast.
+         * The high DPR makes content render too large and clips items.
+         * Use `zoom` to shrink the app — it reflows naturally and avoids the
+         * subpixel blur/width-compensation needed by `transform: scale`.
+         * Targeted by exact viewport AND DPR so Nest Hub Max
+         * (1280x800, DPR 1.0) is not affected.
          */
-        @media (width: 1280px) and (height: 720px) {
+        @media screen and (width: 1280px) and (height: 720px) and (-webkit-min-device-pixel-ratio: 2) {
             #app {
-                zoom: 0.75;
+                zoom: 0.6;
             }
         }
     </style>
