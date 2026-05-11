@@ -29,14 +29,14 @@ The calendar must be visible in [Google Calendar](https://calendar.google.com/) 
 ```javascript
 // Returns events from a named Google Calendar as JSON (or JSONP when callback=... is provided).
 // Required query params: timeMin, timeMax, calendarName
-// Optional query param:  c (shared token — see "Token gating" below)
+// Optional query param:  token (shared token — see "Token gating" below)
 // Optional query param:  callback (used by JSONP fallback for CORS-restricted browsers)
-// Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson&c=k7q2x9mz
+// Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson&token=k7q2x9mz
 //
 // ── Token gating (optional) ──────────────────────────────────────────
 // Set SHARED_TOKEN to a random string (e.g. "k7q2x9mz") and bookmark
-// the checklist page as  https://yoursite/?c=k7q2x9mz
-// The page reads "c" from the URL at runtime and forwards it here.
+// the checklist page as  https://yoursite/?token=k7q2x9mz
+// The page reads "token" from the URL at runtime and forwards it here.
 // Because the token only exists in the bookmark and in this constant,
 // it never appears in the public GitHub repo.
 // Leave SHARED_TOKEN as "" to allow unauthenticated access (old behaviour).
@@ -48,7 +48,7 @@ function doGet(e) {
     var callback = params.callback;
 
     // ── Token check ──────────────────────────────────────────────────
-    if (SHARED_TOKEN && params.c !== SHARED_TOKEN) {
+    if (SHARED_TOKEN && params.token !== SHARED_TOKEN) {
       return response({ error: "forbidden" }, callback);
     }
 
@@ -139,6 +139,8 @@ Apps Script web apps are versioned. If you edit the script, you must click **Dep
 
 If you hit a browser CORS error from a custom site origin (for example `https://andythompy.com`), make sure your script includes the `callback` support above and is redeployed as a new version.
 
+Important: avoid using `c` as a query parameter name with Apps Script web apps. Apps Script reserves `c`, which can trigger a "Sorry, unable to open the file" response before your `doGet` runs.
+
 ## Alternative proxies
 
 The frontend just expects JSON in either of these shapes, so any backend works:
@@ -169,9 +171,9 @@ You can add a lightweight shared secret that stops crawlers and casual visitors 
 
 1. **Pick a random string** (e.g. `k7q2x9mz` — don't use a dictionary word).
 2. **In the Apps Script**, set `var SHARED_TOKEN = "k7q2x9mz";` at the top of `Code.gs` and redeploy (Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy).
-3. **Bookmark the checklist page** on your Nest Hub as `https://yoursite/?c=k7q2x9mz`.
+3. **Bookmark the checklist page** on your Nest Hub as `https://yoursite/?token=k7q2x9mz`.
 
-The page reads `c` from the URL at runtime and forwards it to the proxy. Because the token only exists in two places — the Nest Hub bookmark and the Apps Script constant — it **never appears in the public GitHub repo**. Anyone who finds your `/exec` URL in the source code still can't use it without the token.
+The page reads `token` from the URL at runtime and forwards it to the proxy. Because the token only exists in two places — the Nest Hub bookmark and the Apps Script constant — it **never appears in the public GitHub repo**. Anyone who finds your `/exec` URL in the source code still can't use it without the token.
 
 **What this does NOT protect against:**
 

@@ -329,7 +329,7 @@
             // See CALENDAR_SETUP.md for a copy-paste Google Apps Script that does this.
             // Until `endpoint` is set, the calendar column will show "Calendar not set up yet."
             //
-            // Optional token gating: bookmark the page as https://yoursite/?c=YOUR_SECRET
+            // Optional token gating: bookmark the page as https://yoursite/?token=YOUR_SECRET
             // The token is read from the URL at runtime and forwarded to the proxy.
             // It is never hard-coded here, so the public repo source reveals nothing useful.
             // See CALENDAR_SETUP.md § "Token gating" for the Apps Script side.
@@ -689,10 +689,14 @@
 
         // Calendar functionality
 
-        // Read the optional calendar token from the page URL (?c=...).
+        // Read the optional calendar token from the page URL.
+        // Supports ?token=... (preferred) and ?c=... (legacy bookmark compatibility).
         // This is never hard-coded in the source — it only exists in the
         // bookmarked URL on the Nest Hub and the Apps Script constant.
-        const CALENDAR_TOKEN = new URLSearchParams(window.location.search).get('c') || '';
+        const CALENDAR_TOKEN = (() => {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('token') || params.get('c') || '';
+        })();
 
         function addDays(date, days) {
             const nextDate = new Date(date);
@@ -726,7 +730,8 @@
             url.searchParams.set('timeMax', timeMax.toISOString());
             url.searchParams.set('calendarName', CONFIG.calendar.calendarName);
             if (CALENDAR_TOKEN) {
-                url.searchParams.set('c', CALENDAR_TOKEN);
+                // Apps Script reserves `c`; use `token` to avoid request routing errors.
+                url.searchParams.set('token', CALENDAR_TOKEN);
             }
             return url.toString();
         }
