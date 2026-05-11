@@ -203,17 +203,14 @@
         }
 
         /*
-         * Chromecast with Google TV (1280x720 logical, DPR 2.0) via DashCast.
-         * The high DPR makes content render too large and clips items.
-         * Use `zoom` to shrink the app — it reflows naturally and avoids the
-         * subpixel blur/width-compensation needed by `transform: scale`.
-         * Targeted by exact viewport AND DPR so Nest Hub Max
-         * (1280x800, DPR 1.0) is not affected.
+         * Chromecast / cast-device scaling.
+         * Detection is done in JS (see bottom of file) because exact-match
+         * media queries on cast devices are unreliable. JS sets a
+         * data-display attribute on <html> which this rule matches.
+         * Nest Hub Max (1280x800, DPR 1.0) is excluded by the JS detection.
          */
-        @media screen and (width: 1280px) and (height: 720px) and (-webkit-min-device-pixel-ratio: 2) {
-            #app {
-                zoom: 0.6;
-            }
+        html[data-display="cast-tv"] #app {
+            zoom: 0.6;
         }
     </style>
 </head>
@@ -272,6 +269,33 @@
         </div>
     </div>
     -->
+
+    <script>
+        // Cast-device display detection (runs synchronously before render).
+        // Chromecast with Google TV via DashCast reports a small viewport with
+        // DPR >= 2, making content render too large. Detect that case and
+        // tag <html> so CSS can shrink the app via `zoom`.
+        // Nest Hub Max (DPR 1.0) and normal browsers are excluded.
+        (function detectCastDisplay() {
+            try {
+                const dpr = window.devicePixelRatio || 1;
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                const params = new URLSearchParams(window.location.search);
+                const force = params.get('display'); // manual override: ?display=cast-tv
+
+                const looksLikeCastTv = dpr >= 1.5 && w <= 1400 && h <= 900;
+
+                if (force === 'cast-tv' || looksLikeCastTv) {
+                    document.documentElement.dataset.display = 'cast-tv';
+                }
+                // Surface values for debugging from DevTools / console.
+                window.__displayInfo = { dpr, w, h, force, applied: document.documentElement.dataset.display || null };
+            } catch (e) {
+                // Detection must never break the page.
+            }
+        })();
+    </script>
 
     <script type="module">
         // ===================================================================
