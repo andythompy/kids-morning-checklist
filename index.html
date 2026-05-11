@@ -290,9 +290,9 @@
         const CONFIG = {
             // Children - 'id' is used for database keys, 'name' is displayed (can include emojis)
             children: [
-                { id: "rose", name: "Rose 🌹" },
-                { id: "lucy", name: "Lucy 🐻‍❄️" },
-                { id: "olive", name: "Olive 🦄" }
+                { id: "rose", name: "Rose 🏃‍♀️" },
+                { id: "lucy", name: "Lucy 💃" },
+                { id: "olive", name: "Olive 🏊‍♀️" }
             ],
             tasks: [
                 { text: "Get dressed", emoji: "👕" },
@@ -559,7 +559,7 @@
             header.className = 'mb-1.5 text-center relative';
             const heading = document.createElement('h2');
             heading.className = 'text-2xl font-bold text-amber-700';
-            heading.textContent = "📅 What's On?";
+            heading.textContent = "What's On? 📅";
             header.appendChild(heading);
             column.appendChild(header);
 
@@ -814,11 +814,12 @@
             const end = parseCalendarDate(getEventEndValue(event));
             if (!start || Number.isNaN(start.getTime())) return '';
 
-            const timeOptions = { hour: 'numeric', minute: '2-digit' };
-            const startText = start.toLocaleTimeString(undefined, timeOptions);
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+            const formatClock = (date) => date.toLocaleTimeString(undefined, timeOptions).replace(/\s+/g, '').toLowerCase();
+            const startText = formatClock(start);
             if (!end || Number.isNaN(end.getTime())) return startText;
 
-            return `${startText} - ${end.toLocaleTimeString(undefined, timeOptions)}`;
+            return `${startText} - ${formatClock(end)}`;
         }
 
         function getEventDayKey(startValue, startDate, allDay) {
@@ -839,7 +840,6 @@
 
                     return {
                         title: event.summary || event.title || '(No title)',
-                        location: event.location || '',
                         start: event.start,
                         end: event.end,
                         startTime: event.startTime,
@@ -922,13 +922,6 @@
                         meta.className = 'text-sm font-medium text-amber-700 mt-0.5';
                         meta.textContent = formatEventTime(event);
                         eventDiv.appendChild(meta);
-
-                        if (event.location) {
-                            const location = document.createElement('div');
-                            location.className = 'text-xs text-gray-500 mt-0.5 truncate';
-                            location.textContent = event.location;
-                            eventDiv.appendChild(location);
-                        }
 
                         section.appendChild(eventDiv);
                     });
