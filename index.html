@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>Morning Checklist</title>
     
     <!-- Tailwind CSS from CDN -->
@@ -91,6 +92,10 @@
             text-decoration: line-through;
             box-shadow: none;
             filter: grayscale(0.5);
+        }
+
+        .calendar-event {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
         }
         
         .column-complete {
@@ -291,7 +296,7 @@
             ],
             tasks: [
                 { text: "Get dressed", emoji: "👕" },
-                { text: "Eat breakfast (and clean up)", emoji: "🍳" },
+                { text: "Eat breakfast", emoji: "🍳" },
                 { text: "Brush hair", emoji: "💇" },
                 { text: "Brush teeth", emoji: "🦷" },
                 { text: "Tidy room", emoji: "🧹" },
@@ -318,6 +323,21 @@
                 // Find your coordinates: https://www.google.com/maps (right-click on map to get coordinates)
                 lat: -38.1481736,
                 lon: 144.336537
+            },
+            // Calendar Configuration
+            // Requires a server-side proxy (so Google credentials never live in this static page).
+            // See CALENDAR_SETUP.md for a copy-paste Google Apps Script that does this.
+            // Until `endpoint` is set, the calendar column will show "Calendar not set up yet."
+            //
+            // Optional token gating: bookmark the page as https://yoursite/?c=YOUR_SECRET
+            // The token is read from the URL at runtime and forwarded to the proxy.
+            // It is never hard-coded here, so the public repo source reveals nothing useful.
+            // See CALENDAR_SETUP.md § "Token gating" for the Apps Script side.
+            calendar: {
+                // Must be a full https:// URL so credentials are never embedded in this static page.
+                endpoint: "https://script.google.com/macros/s/AKfycbwCr1sN13jYYR0FXDZKA7BDV_bLw55v_FAXLLq8UrAPoI1hp1jXp6T2k6wihD4xhoWW/exec",
+                calendarName: "Thompson",
+                daysToShow: 3
             }
         };
         // ===================================================================
@@ -529,6 +549,29 @@
             return column;
         }
 
+        // Create the "What's On?" calendar column
+        function createCalendarColumn() {
+            const column = document.createElement('div');
+            column.className = 'flex-1 bg-amber-50/80 backdrop-blur-sm border-4 border-amber-400 rounded-2xl p-2.5 shadow-xl flex flex-col transition-all duration-300';
+            column.id = 'column-calendar';
+
+            const header = document.createElement('div');
+            header.className = 'mb-1.5 text-center relative';
+            const heading = document.createElement('h2');
+            heading.className = 'text-2xl font-bold text-amber-700';
+            heading.textContent = "📅 What's On?";
+            header.appendChild(heading);
+            column.appendChild(header);
+
+            const eventsContainer = document.createElement('div');
+            eventsContainer.id = 'calendar-events';
+            eventsContainer.className = 'flex-1 space-y-2 tasks-scroll';
+            eventsContainer.textContent = 'Loading calendar...';
+            column.appendChild(eventsContainer);
+
+            return column;
+        }
+
         // Weather functionality
         function getWeatherTheme(temp, condition) {
             // Determine weather theme based on temperature and conditions
@@ -644,6 +687,237 @@
             updateWeatherDisplay(temp, minTemp, maxTemp, descriptions[theme], theme);
         }
 
+        // Calendar functionality
+
+        // Read the optional calendar token from the page URL (?c=...).
+        // This is never hard-coded in the source — it only exists in the
+        // bookmarked URL on the Nest Hub and the Apps Script constant.
+        const CALENDAR_TOKEN = new URLSearchParams(window.location.search).get('c') || '';
+
+        function addDays(date, days) {
+            const nextDate = new Date(date);
+            nextDate.setDate(nextDate.getDate() + days);
+            return nextDate;
+        }
+
+        function getStartOfDay(date) {
+            const start = new Date(date);
+            start.setHours(0, 0, 0, 0);
+            return start;
+        }
+
+        function getCalendarDateKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function getDayLabel(date, offset) {
+            if (offset === 0) return 'Today';
+            if (offset === 1) return 'Tomorrow';
+            return date.toLocaleDateString(undefined, { weekday: 'long' });
+        }
+
+        function appendCalendarQueryParams(endpoint, timeMin, timeMax) {
+            const url = new URL(endpoint);
+            if (url.protocol !== 'https:') {
+                throw new Error('Calendar endpoint must be an HTTPS URL');
+            }
+
+            url.searchParams.set('timeMin', timeMin.toISOString());
+            url.searchParams.set('timeMax', timeMax.toISOString());
+            url.searchParams.set('calendarName', CONFIG.calendar.calendarName);
+            if (CALENDAR_TOKEN) {
+                url.searchParams.set('c', CALENDAR_TOKEN);
+            }
+            return url.toString();
+        }
+
+        function getCalendarDaysToShow() {
+            return Math.min(Math.max(CONFIG.calendar.daysToShow, 1), 7);
+        }
+
+        // Supports Google Calendar Events API objects plus simple proxy objects:
+        // { title, startTime, endTime, date, allDay, location }.
+        function getEventStartValue(event) {
+            return event.start?.dateTime || event.start?.date || event.startTime || event.date;
+        }
+
+        function getEventEndValue(event) {
+            return event.end?.dateTime || event.end?.date || event.endTime;
+        }
+
+        function isAllDayEvent(event) {
+            return Boolean(event.start?.date && !event.start?.dateTime) || event.allDay === true;
+        }
+
+        function parseCalendarDate(value, allDay = false) {
+            if (!value) return null;
+            if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                const [year, month, day] = value.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                const isValidDate = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+                if (!isValidDate) return null;
+
+                // All-day event dates are calendar dates, so keep them in the display's local day.
+                return date;
+            }
+            return new Date(value);
+        }
+
+        function formatEventTime(event) {
+            if (isAllDayEvent(event)) return 'All day';
+
+            const start = parseCalendarDate(getEventStartValue(event));
+            const end = parseCalendarDate(getEventEndValue(event));
+            if (!start || Number.isNaN(start.getTime())) return '';
+
+            const timeOptions = { hour: 'numeric', minute: '2-digit' };
+            const startText = start.toLocaleTimeString(undefined, timeOptions);
+            if (!end || Number.isNaN(end.getTime())) return startText;
+
+            return `${startText} - ${end.toLocaleTimeString(undefined, timeOptions)}`;
+        }
+
+        function getEventDayKey(startValue, startDate, allDay) {
+            if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(startValue)) {
+                return startValue;
+            }
+
+            return startDate ? getCalendarDateKey(startDate) : '';
+        }
+
+        function normalizeCalendarEvents(data) {
+            const items = Array.isArray(data) ? data : (data.items || data.events || []);
+            return items
+                .map(event => {
+                    const allDay = isAllDayEvent(event);
+                    const startValue = getEventStartValue(event);
+                    const startDate = parseCalendarDate(startValue, allDay);
+
+                    return {
+                        title: event.summary || event.title || '(No title)',
+                        location: event.location || '',
+                        start: event.start,
+                        end: event.end,
+                        startTime: event.startTime,
+                        endTime: event.endTime,
+                        date: event.date,
+                        allDay,
+                        startDate,
+                        dayKey: getEventDayKey(startValue, startDate, allDay)
+                    };
+                })
+                .filter(event => {
+                    return event.startDate && !Number.isNaN(event.startDate.getTime());
+                })
+                .sort((a, b) => {
+                    return a.startDate - b.startDate;
+                });
+        }
+
+        function renderCalendarMessage(message, isError = false) {
+            const container = document.getElementById('calendar-events');
+            if (!container) return;
+
+            container.textContent = '';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `bg-white/85 border-2 ${isError ? 'border-red-300 text-red-700' : 'border-amber-200 text-gray-600'} rounded-lg p-3 text-sm font-semibold`;
+            messageDiv.textContent = message;
+            container.appendChild(messageDiv);
+        }
+
+        function renderCalendarEvents(events) {
+            const container = document.getElementById('calendar-events');
+            if (!container) return;
+
+            container.textContent = '';
+            const today = getStartOfDay(new Date());
+            const eventsByDay = new Map();
+
+            for (let offset = 0; offset < getCalendarDaysToShow(); offset += 1) {
+                const date = addDays(today, offset);
+                eventsByDay.set(getCalendarDateKey(date), {
+                    date,
+                    offset,
+                    events: []
+                });
+            }
+
+            events.forEach(event => {
+                // The proxy may return boundary events; only render the configured visible days.
+                const day = eventsByDay.get(event.dayKey);
+                if (day) {
+                    day.events.push(event);
+                }
+            });
+
+            eventsByDay.forEach(day => {
+                const section = document.createElement('section');
+                section.className = 'space-y-1.5';
+
+                const heading = document.createElement('h3');
+                heading.className = 'text-sm font-bold uppercase tracking-wide text-amber-700 px-1';
+                heading.textContent = getDayLabel(day.date, day.offset);
+                section.appendChild(heading);
+
+                if (day.events.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'bg-white/70 border border-amber-100 rounded-lg p-2 text-sm text-gray-500';
+                    empty.textContent = 'Nothing planned';
+                    section.appendChild(empty);
+                } else {
+                    day.events.forEach(event => {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.className = 'calendar-event bg-white border-2 border-amber-200 rounded-lg p-2';
+
+                        const title = document.createElement('div');
+                        title.className = 'text-base font-semibold text-gray-800 leading-tight';
+                        title.textContent = event.title;
+                        eventDiv.appendChild(title);
+
+                        const meta = document.createElement('div');
+                        meta.className = 'text-sm font-medium text-amber-700 mt-0.5';
+                        meta.textContent = formatEventTime(event);
+                        eventDiv.appendChild(meta);
+
+                        if (event.location) {
+                            const location = document.createElement('div');
+                            location.className = 'text-xs text-gray-500 mt-0.5 truncate';
+                            location.textContent = event.location;
+                            eventDiv.appendChild(location);
+                        }
+
+                        section.appendChild(eventDiv);
+                    });
+                }
+
+                container.appendChild(section);
+            });
+        }
+
+        async function fetchCalendarEvents() {
+            if (!CONFIG.calendar.endpoint) {
+                console.warn('Calendar endpoint is not configured.');
+                renderCalendarMessage('Calendar not set up yet.');
+                return;
+            }
+
+            try {
+                const timeMin = getStartOfDay(new Date());
+                const timeMax = addDays(timeMin, getCalendarDaysToShow());
+                const response = await fetch(appendCalendarQueryParams(CONFIG.calendar.endpoint, timeMin, timeMax));
+
+                if (!response.ok) {
+                    throw new Error(`Calendar API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                renderCalendarEvents(normalizeCalendarEvents(data));
+            } catch (error) {
+                console.error('Failed to fetch calendar:', error);
+                renderCalendarMessage('Calendar could not be loaded.', true);
+            }
+        }
+
         // Setup Firestore real-time listener
         function setupFirestoreListener() {
             const docRef = doc(db, 'checklists', TODAY_KEY);
@@ -720,6 +994,7 @@
         // Make testWeather available globally for the test buttons
         window.testWeather = testWeather;
         window.fetchWeather = fetchWeather;
+        window.fetchCalendarEvents = fetchCalendarEvents;
 
         // Initialize the app (now async)
         async function init() {
@@ -736,6 +1011,8 @@
                     const column = createColumn(child, index);
                     container.appendChild(column);
                 });
+
+                container.appendChild(createCalendarColumn());
                 
                 // Setup Firestore listener after UI is built
                 console.log('Setting up Firestore listener...');
@@ -750,6 +1027,9 @@
                 
                 // Fetch weather on load
                 fetchWeather();
+
+                // Fetch calendar events on load
+                fetchCalendarEvents();
                 
                 // Update clock every second
                 updateClock();
@@ -757,6 +1037,9 @@
 
                 // Refresh weather every 30 minutes
                 setInterval(fetchWeather, 30 * 60 * 1000);
+
+                // Refresh calendar every 10 minutes
+                setInterval(fetchCalendarEvents, 10 * 60 * 1000);
             } catch (error) {
                 console.error('❌ Error initializing app:', error);
                 console.error('Error code:', error.code);
