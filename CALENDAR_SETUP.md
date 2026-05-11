@@ -7,7 +7,6 @@ Because this app is a static page on GitHub Pages, it **cannot talk to Google Ca
 The easiest (and free) way to host that proxy is **Google Apps Script**, because it can read your own calendars without any extra OAuth configuration. This guide walks through that path.
 
 > Until you complete this setup, the calendar column will simply show **"Calendar not set up yet."** — the rest of the app (checklists, weather) works fine without it.
-
 > ⚠️ **Read [Security considerations](#security-considerations) before pointing this at a personal calendar.** With the default "Anyone can access" Apps Script deployment, the contents of the chosen calendar are effectively public. The recommended setup is to use a **dedicated calendar** that only contains events safe to display.
 
 ---
@@ -28,9 +27,10 @@ The calendar must be visible in [Google Calendar](https://calendar.google.com/) 
 3. Click the **Save** icon and give the project a name (e.g. `Morning Checklist Calendar Proxy`).
 
 ```javascript
-// Returns events from a named Google Calendar as JSON.
+// Returns events from a named Google Calendar as JSON (or JSONP when callback=... is provided).
 // Required query params: timeMin, timeMax, calendarName
 // Optional query param:  c (shared token — see "Token gating" below)
+// Optional query param:  callback (used by JSONP fallback for CORS-restricted browsers)
 // Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson&c=k7q2x9mz
 //
 // ── Token gating (optional) ──────────────────────────────────────────
@@ -45,10 +45,11 @@ var SHARED_TOKEN = "";   // ← put your random string here, or leave "" to disa
 function doGet(e) {
   try {
     var params = (e && e.parameter) || {};
+    var callback = params.callback;
 
     // ── Token check ──────────────────────────────────────────────────
     if (SHARED_TOKEN && params.c !== SHARED_TOKEN) {
-      return jsonResponse({ error: "forbidden" });
+      return response({ error: "forbidden" }, callback);
     }
 
     var calendarName = params.calendarName;
@@ -56,12 +57,12 @@ function doGet(e) {
     var timeMax = params.timeMax ? new Date(params.timeMax) : null;
 
     if (!calendarName || !timeMin || !timeMax) {
-      return jsonResponse({ error: 'Missing timeMin, timeMax or calendarName' });
+      return response({ error: 'Missing timeMin, timeMax or calendarName' }, callback);
     }
 
     var matches = CalendarApp.getCalendarsByName(calendarName);
     if (matches.length === 0) {
-      return jsonResponse({ error: 'Calendar not found: ' + calendarName });
+      return response({ error: 'Calendar not found: ' + calendarName }, callback);
     }
 
     var events = matches[0].getEvents(timeMin, timeMax).map(function (event) {
@@ -76,13 +77,19 @@ function doGet(e) {
       };
     });
 
-    return jsonResponse({ items: events });
+    return response({ items: events }, callback);
   } catch (err) {
-    return jsonResponse({ error: String(err) });
+    return response({ error: String(err) }, callback);
   }
 }
 
-function jsonResponse(payload) {
+function response(payload, callback) {
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(payload) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
@@ -101,7 +108,7 @@ function jsonResponse(payload) {
 5. Authorize the script when prompted. You will see a "Google hasn't verified this app" warning — this is expected for personal Apps Script projects. Click **Advanced → Go to … (unsafe)** and continue.
 6. Copy the **Web app URL**. It looks like:
 
-   ```
+  ```text
    https://script.google.com/macros/s/AKfycby...../exec
    ```
 
@@ -129,6 +136,8 @@ Commit and push — GitHub Actions will redeploy to Pages automatically.
 ## Updating the script later
 
 Apps Script web apps are versioned. If you edit the script, you must click **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy** to publish the change. The `/exec` URL stays the same.
+
+If you hit a browser CORS error from a custom site origin (for example `https://andythompy.com`), make sure your script includes the `callback` support above and is redeployed as a new version.
 
 ## Alternative proxies
 
@@ -191,8 +200,9 @@ If you ever suspect the URL has been abused, go to **Deploy → Manage deploymen
 ## Troubleshooting
 
 | Symptom | Likely cause |
-|---|---|
+| --- | --- |
 | `Calendar not set up yet.` | `CONFIG.calendar.endpoint` is still `""` |
 | `Calendar could not be loaded.` + 401/403 in console | Web app deployed as "Only myself" — redeploy with **Who has access: Anyone** |
 | `Calendar could not be loaded.` + 404 in console | `calendarName` doesn't match the calendar in Google Calendar exactly (case/spacing matters) |
+| `No 'Access-Control-Allow-Origin' header` in console | Script is running in JSON-only mode; add `callback` support (above) and redeploy |
 | Events show on the wrong day | Apps Script returns ISO timestamps in UTC; the app renders them in the browser's local timezone — make sure the Nest Hub is set to your timezone |
