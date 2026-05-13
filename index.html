@@ -204,11 +204,11 @@
 
         /*
          * TV explicit mode styling (?display=tv)
-         * Shrinks the interface slightly (85%) to fit ~10 items comfortably
+         * Shrinks the interface slightly (75%) to fit all items comfortably
          * on 720p/1080p landscape screens without making the text tiny.
          */
         html[data-display="tv"] #app {
-            zoom: 0.85;
+            zoom: 0.75;
         }
     </style>
 </head>
@@ -322,8 +322,8 @@
                 { id: "olive", name: "Olive 🏊‍♀️" }
             ],
             tasks: [
-                { text: "Get dressed", emoji: "👕" },
                 { text: "Eat breakfast", emoji: "🍳" },
+                { text: "Get dressed", emoji: "👕" },
                 { text: "Brush hair", emoji: "💇" },
                 { text: "Brush teeth", emoji: "🦷" },
                 { text: "Tidy room", emoji: "🧹" },
