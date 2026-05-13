@@ -203,14 +203,12 @@
         }
 
         /*
-         * Chromecast / cast-device scaling.
-         * Detection is done in JS (see bottom of file) because exact-match
-         * media queries on cast devices are unreliable. JS sets a
-         * data-display attribute on <html> which this rule matches.
-         * Nest Hub Max (1280x800, DPR 1.0) is excluded by the JS detection.
+         * TV explicit mode styling (?display=tv)
+         * Shrinks the interface slightly (85%) to fit ~10 items comfortably
+         * on 720p/1080p landscape screens without making the text tiny.
          */
-        html[data-display="cast-tv"] #app {
-            zoom: 0.6;
+        html[data-display="tv"] #app {
+            zoom: 0.85;
         }
     </style>
 </head>
@@ -271,26 +269,17 @@
     -->
 
     <script>
-        // Cast-device display detection (runs synchronously before render).
-        // Chromecast with Google TV via DashCast reports a small viewport with
-        // DPR >= 2, making content render too large. Detect that case and
-        // tag <html> so CSS can shrink the app via `zoom`.
-        // Nest Hub Max (DPR 1.0) and normal browsers are excluded.
+        // Display mode configuration (runs synchronously before render).
+        // PC monitors with high DPR previously triggered false positives for
+        // TV scaling. Now requires explicit URL parameter: ?display=tv
         (function detectCastDisplay() {
             try {
-                const dpr = window.devicePixelRatio || 1;
-                const w = window.innerWidth;
-                const h = window.innerHeight;
                 const params = new URLSearchParams(window.location.search);
-                const force = params.get('display'); // manual override: ?display=cast-tv
+                const displayMode = params.get('display');
 
-                const looksLikeCastTv = dpr >= 1.5 && w <= 1400 && h <= 900;
-
-                if (force === 'cast-tv' || looksLikeCastTv) {
-                    document.documentElement.dataset.display = 'cast-tv';
+                if (displayMode === 'tv' || displayMode === 'cast-tv') {
+                    document.documentElement.dataset.display = 'tv';
                 }
-                // Surface values for debugging from DevTools / console.
-                window.__displayInfo = { dpr, w, h, force, applied: document.documentElement.dataset.display || null };
             } catch (e) {
                 // Detection must never break the page.
             }
@@ -1124,6 +1113,12 @@
 
                 // Refresh calendar every 10 minutes
                 setInterval(fetchCalendarEvents, 10 * 60 * 1000);
+
+                // Reload the entire page periodically (e.g. every 5 mins) to pick up new deployments/code changes
+                setInterval(() => {
+                    console.log('Performing scheduled page reload...');
+                    window.location.reload();
+                }, 5 * 60 * 1000);
             } catch (error) {
                 console.error('❌ Error initializing app:', error);
                 console.error('Error code:', error.code);
