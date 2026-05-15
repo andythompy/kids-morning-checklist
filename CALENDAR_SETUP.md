@@ -18,7 +18,7 @@ The proxy will return *every* event in this calendar to anyone who hits the URL 
 - **Recommended:** in Google Calendar, click **+ → Create new calendar** and make a calendar called e.g. `Thompson` or `Family Dashboard`. Add only the events you're happy to see on a kitchen display. Share it with anyone in the family who should be able to add events.
 - **Not recommended:** pointing this at your main personal calendar.
 
-The calendar must be visible in [Google Calendar](https://calendar.google.com/) under **My calendars** or **Other calendars** for the Google account you'll use to create the Apps Script. The display name must match `CONFIG.calendar.calendarName` in `index.html` exactly (default: `Thompson`).
+The calendars must be visible in [Google Calendar](https://calendar.google.com/) under **My calendars** or **Other calendars** for the Google account you'll use to create the Apps Script. You can put multiple calendars by comma-separating them in `index.html` (e.g., `Thompson,Family`).
 
 ## Step 2: Create the Apps Script
 
@@ -28,10 +28,10 @@ The calendar must be visible in [Google Calendar](https://calendar.google.com/) 
 
 ```javascript
 // Returns events from a named Google Calendar as JSON (or JSONP when callback=... is provided).
-// Required query params: timeMin, timeMax, calendarName
+// Required query params: timeMin, timeMax, calendarName (can be comma-separated for multiple calendars)
 // Optional query param:  token (shared token — see "Token gating" below)
 // Optional query param:  callback (used by JSONP fallback for CORS-restricted browsers)
-// Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson&token=k7q2x9mz
+// Example: ?timeMin=2026-05-10T00:00:00Z&timeMax=2026-05-13T00:00:00Z&calendarName=Thompson,Family&token=k7q2x9mz
 //
 // ── Token gating (optional) ──────────────────────────────────────────
 // Set SHARED_TOKEN to a random string (e.g. "k7q2x9mz") and bookmark
@@ -52,32 +52,36 @@ function doGet(e) {
       return response({ error: "forbidden" }, callback);
     }
 
-    var calendarName = params.calendarName;
+    var calendarNames = params.calendarName ? params.calendarName.split(',') : [];
     var timeMin = params.timeMin ? new Date(params.timeMin) : null;
     var timeMax = params.timeMax ? new Date(params.timeMax) : null;
 
-    if (!calendarName || !timeMin || !timeMax) {
+    if (calendarNames.length === 0 || !timeMin || !timeMax) {
       return response({ error: 'Missing timeMin, timeMax or calendarName' }, callback);
     }
 
-    var matches = CalendarApp.getCalendarsByName(calendarName);
-    if (matches.length === 0) {
-      return response({ error: 'Calendar not found: ' + calendarName }, callback);
+    var allEvents = [];
+    for (var i = 0; i < calendarNames.length; i++) {
+      var cName = calendarNames[i].trim();
+      if (!cName) continue;
+      
+      var matches = CalendarApp.getCalendarsByName(cName);
+      if (matches.length > 0) {
+        var events = matches[0].getEvents(timeMin, timeMax).map(function (event) {
+          return {
+            title: event.getTitle(),
+            // Remove the next line if you don't want event locations exposed via the URL.
+            location: event.getLocation() || '',
+            allDay: event.isAllDayEvent(),
+            startTime: event.getStartTime().toISOString(),
+            endTime: event.getEndTime().toISOString()
+          };
+        });
+        allEvents = allEvents.concat(events);
+      }
     }
 
-    var events = matches[0].getEvents(timeMin, timeMax).map(function (event) {
-      var allDay = event.isAllDayEvent();
-      return {
-        title: event.getTitle(),
-        // Remove the next line if you don't want event locations exposed via the URL.
-        location: event.getLocation() || '',
-        allDay: allDay,
-        startTime: event.getStartTime().toISOString(),
-        endTime: event.getEndTime().toISOString()
-      };
-    });
-
-    return response({ items: events }, callback);
+    return response({ items: allEvents }, callback);
   } catch (err) {
     return response({ error: String(err) }, callback);
   }
@@ -119,7 +123,7 @@ Open `index.html` and find the `CONFIG.calendar` block (around line 330):
 ```javascript
 calendar: {
     endpoint: "https://script.google.com/macros/s/AKfycby...../exec", // <-- paste your URL here
-    calendarName: "Thompson",                                          // must match the calendar name exactly
+    calendarName: "Thompson,Family",                                   // comma-separate multiple calendars
     daysToShow: 3                                                      // 1–7
 }
 ```
