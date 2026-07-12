@@ -391,11 +391,11 @@
             return `${childId.toLowerCase()}-${taskText.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
         }
 
-        // Get all tasks for a specific child (shared tasks + child-specific tasks)
+        // Get all tasks for a specific child (shared tasks only - the individual
+        // chore from CONFIG.childSpecificTasks is intentionally excluded so the
+        // task lists are shorter and easier to read from a distance)
         function getTasksForChild(childId) {
-            const sharedTasks = [...CONFIG.tasks];
-            const childTasks = CONFIG.childSpecificTasks[childId] || [];
-            return [...sharedTasks, ...childTasks];
+            return [...CONFIG.tasks];
         }
 
         // Check if task is completed
@@ -512,14 +512,14 @@
             const isCompleted = isTaskCompleted(childId, task.text);
             
             const taskDiv = document.createElement('div');
-            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2 cursor-pointer ${colorScheme.hover} flex items-center gap-2 ${isCompleted ? 'completed' : ''}`;
+            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2.5 cursor-pointer ${colorScheme.hover} flex items-center gap-2.5 ${isCompleted ? 'completed' : ''}`;
             
             taskDiv.innerHTML = `
-                <div class="checkmark ${colorScheme.checkmark} text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-base flex-shrink-0 ${isCompleted ? '' : 'hidden'}">
+                <div class="checkmark ${colorScheme.checkmark} text-white rounded-full w-9 h-9 flex items-center justify-center font-bold text-xl flex-shrink-0 ${isCompleted ? '' : 'hidden'}">
                     ✓
                 </div>
-                <div class="text-2xl flex-shrink-0">${task.emoji}</div>
-                <div class="flex-1 text-lg font-semibold text-gray-700">
+                <div class="text-3xl flex-shrink-0">${task.emoji}</div>
+                <div class="flex-1 text-2xl font-semibold text-gray-700">
                     ${task.text}
                 </div>
             `;
@@ -547,7 +547,7 @@
             
             // Tasks container with scrolling enabled
             const tasksContainer = document.createElement('div');
-            tasksContainer.className = 'flex-1 space-y-1.5 tasks-scroll';
+            tasksContainer.className = 'flex-1 space-y-2 tasks-scroll';
             
             const childTasks = getTasksForChild(child.id);
             childTasks.forEach(task => {
