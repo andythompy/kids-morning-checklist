@@ -426,11 +426,18 @@
             return `${childId.toLowerCase()}-${getTaskKey(task)}`;
         }
 
+        // A child's own tasks from a childSpecificTasks map. Own properties only, so ids such as
+        // 'constructor' can never pick up an inherited Object.prototype value.
+        function getOwnTasks(childSpecificTasks, childId) {
+            const tasks = childSpecificTasks && Object.prototype.hasOwnProperty.call(childSpecificTasks, childId)
+                ? childSpecificTasks[childId]
+                : undefined;
+            return Array.isArray(tasks) ? tasks : [];
+        }
+
         // Get all tasks for a specific child (shared tasks + child-specific tasks)
         function getTasksForChild(childId) {
-            const sharedTasks = [...activeTasks];
-            const childTasks = activeChildSpecificTasks[childId] || [];
-            return [...sharedTasks, ...childTasks];
+            return [...activeTasks, ...getOwnTasks(activeChildSpecificTasks, childId)];
         }
 
         // Check if task is completed
@@ -1110,8 +1117,9 @@
                 if (!child || typeof child.id !== 'string' || typeof child.name !== 'string') return false;
                 // Same rule as the morning-canvas service: ids are database keys, lowercase [a-z0-9_-]
                 if (!/^[a-z0-9_-]+$/.test(child.id)) return false;
-                // 'calendar' would clash with the What's On? column id
-                if (child.id === 'calendar' || childIds.has(child.id)) return false;
+                // 'calendar' would clash with the What's On? column id; names like 'constructor'
+                // are Object.prototype properties and must never be used as map keys
+                if (child.id === 'calendar' || child.id in Object.prototype || childIds.has(child.id)) return false;
                 childIds.add(child.id);
                 return true;
             });
@@ -1124,7 +1132,7 @@
 
             // Each child's shared plus own task keys must be unique, as they are the database keys
             return data.children.every(child => {
-                const keys = [...data.tasks, ...((specific || {})[child.id] || [])].map(task => task.key);
+                const keys = [...data.tasks, ...getOwnTasks(specific, child.id)].map(task => task.key);
                 return new Set(keys).size === keys.length;
             });
         }
@@ -1138,7 +1146,7 @@
                 child.name,
                 COLORS.indexOf(getColorScheme(child, index)),
                 tasks.map(summariseTask),
-                (childSpecificTasks[child.id] || []).map(summariseTask)
+                getOwnTasks(childSpecificTasks, child.id).map(summariseTask)
             ]));
         }
 
