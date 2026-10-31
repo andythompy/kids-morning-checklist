@@ -17,7 +17,7 @@ A single-page web app for our Google Nest Hub Max that shows each child's mornin
 
 | Thing | Where it's configured | Is it a secret? |
 |---|---|---|
-| Children, tasks, per-child chores | `CONFIG.children`, `CONFIG.tasks`, `CONFIG.childSpecificTasks` in `index.html` | No |
+| Children, tasks, per-child chores | Firestore document `config/checklist`, read live (edits show up within seconds, no reload). The inline `CONFIG.children`, `CONFIG.tasks` and `CONFIG.childSpecificTasks` in `index.html` are the fallback, used when that document is missing, invalid or unreadable | No |
 | Weather location | `CONFIG.weather` (lat/lon) in `index.html` | No |
 | Calendar proxy URL | `CONFIG.calendar.endpoint` in `index.html` | No (it's a public URL — and effectively so are the calendar contents it returns; see [`CALENDAR_SETUP.md`](./CALENDAR_SETUP.md#security-considerations)) |
 | Firebase web app config | `firebaseConfig` object in `index.html` | **No — see below** |
@@ -74,7 +74,8 @@ const CONFIG = {
 
 Notes:
 - **Never change a child's `id`** once data exists in Firestore — it's the database key. Changing `name` (including emoji) is safe.
-- The `COLORS` array immediately below `CONFIG` has one entry per child, in the same order.
+- The live task list lives in Firestore at `config/checklist` (see [`FIREBASE_SETUP.md`](./FIREBASE_SETUP.md)). Its shape is `{ children: [{ id, name, colour }], tasks: [{ key, text, emoji }], childSpecificTasks: { <childId>: [{ key, text, emoji }] } }`. Each task's `key` is its database key, so never change a key once ticks exist. Keep the inline `CONFIG` roughly in step, as it's the fallback.
+- Colours: `colour` can be `purple`, `blue`, `pink`, `green`, `orange` or `teal` (anything else gets the default). Children without a `colour`, such as those in the inline `CONFIG`, take the `COLORS` presets in order.
 - Weather coordinates: right-click on Google Maps to copy lat/lon for your location.
 
 ## Local testing
