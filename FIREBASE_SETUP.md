@@ -21,19 +21,33 @@ This app now uses Firebase Firestore for persistent state storage across device 
 1. In Firestore Database, click on the **Rules** tab
 2. Replace the default rules with:
 
-```javascript
+```text
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow anonymous users to read/write only to the checklists collection
     match /checklists/{document=**} {
       allow read, write: if request.auth != null;
+    }
+    match /config/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /display/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
   }
 }
 ```
 
 3. Click **Publish**
+
+What these rules mean:
+
+- **`checklists/`** holds the daily tick documents. Any signed-in client can read and write them. Because sign-in is anonymous, that means **any anonymous client can read (and write) `checklists`**, not just your devices. Don't store anything private there.
+- **`config/`** holds the shared task list (`config/checklist`). The app reads it but can never write it. Edit it in the Firebase Console, or seed it from the `morning-canvas` service, which uses a service account and bypasses these rules.
+- **`display/`** is reserved for the `morning-canvas` service's display state. It's read-only for the app too.
+- Anything else is denied.
 
 ## Step 4: Enable Anonymous Authentication
 
@@ -78,6 +92,7 @@ const firebaseConfig = {
 ## How It Works
 
 - **Daily Documents**: Each day gets its own document in the `checklists` collection (e.g., `2025-11-03`)
+- **Shared Task List**: Children, tasks and per-child chores are read live from `config/checklist`. If that document is missing, invalid or can't be read, the app uses the built-in `CONFIG` in `index.html` instead
 - **Real-time Sync**: All devices viewing the app will see updates in real-time
 - **Persistent Storage**: State survives device restarts, timeouts, and cache clears
 - **Anonymous Auth**: No user accounts needed - Firebase authenticates the device anonymously

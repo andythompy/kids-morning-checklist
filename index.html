@@ -373,12 +373,41 @@
         const COLORS = [
             { bg: 'bg-white', border: 'border-purple-400', hover: 'hover:bg-purple-50', text: 'text-purple-700', checkmark: 'bg-purple-500', columnBg: 'bg-purple-50/80' },
             { bg: 'bg-white', border: 'border-blue-400', hover: 'hover:bg-blue-50', text: 'text-blue-700', checkmark: 'bg-blue-500', columnBg: 'bg-blue-50/80' },
-            { bg: 'bg-white', border: 'border-pink-400', hover: 'hover:bg-pink-50', text: 'text-pink-700', checkmark: 'bg-pink-500', columnBg: 'bg-pink-50/80' }
+            { bg: 'bg-white', border: 'border-pink-400', hover: 'hover:bg-pink-50', text: 'text-pink-700', checkmark: 'bg-pink-500', columnBg: 'bg-pink-50/80' },
+            { bg: 'bg-white', border: 'border-green-400', hover: 'hover:bg-green-50', text: 'text-green-700', checkmark: 'bg-green-500', columnBg: 'bg-green-50/80' },
+            { bg: 'bg-white', border: 'border-orange-400', hover: 'hover:bg-orange-50', text: 'text-orange-700', checkmark: 'bg-orange-500', columnBg: 'bg-orange-50/80' },
+            { bg: 'bg-white', border: 'border-teal-400', hover: 'hover:bg-teal-50', text: 'text-teal-700', checkmark: 'bg-teal-500', columnBg: 'bg-teal-50/80' }
         ];
+
+        // Colour names used by `colour` in config/checklist; unknown names use the default
+        const COLOR_PRESETS = {
+            purple: COLORS[0],
+            blue: COLORS[1],
+            pink: COLORS[2],
+            green: COLORS[3],
+            orange: COLORS[4],
+            teal: COLORS[5],
+            default: COLORS[0]
+        };
+
+        // Pick a child's colours by name when set, else by position as before
+        function getColorScheme(child, index) {
+            if (child.colour) {
+                return Object.prototype.hasOwnProperty.call(COLOR_PRESETS, child.colour) ? COLOR_PRESETS[child.colour] : COLOR_PRESETS.default;
+            }
+            return COLORS[index % COLORS.length];
+        }
 
         // State management
         let state = {};
         const TODAY_KEY = getTodayKey();
+
+        // Active checklist config. Starts as the inline CONFIG (also the fallback) and is
+        // replaced live by Firestore config/checklist when that document is present and valid.
+        // Weather and calendar settings always come from the inline CONFIG.
+        let activeChildren = CONFIG.children;
+        let activeTasks = CONFIG.tasks;
+        let activeChildSpecificTasks = CONFIG.childSpecificTasks;
 
         // Get today's date as a key
         function getTodayKey() {
@@ -386,27 +415,33 @@
             return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         }
 
+        // Get the database key for a task: its config key, or the slug of its text
+        // (inline tasks have no key; the slug matches keys stored before keys existed)
+        function getTaskKey(task) {
+            return task.key || task.text.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '');
+        }
+
         // Get state key for a task (uses child id, not display name)
-        function getStateKey(childId, taskText) {
-            return `${childId.toLowerCase()}-${taskText.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`;
+        function getStateKey(childId, task) {
+            return `${childId.toLowerCase()}-${getTaskKey(task)}`;
         }
 
         // Get all tasks for a specific child (shared tasks + child-specific tasks)
         function getTasksForChild(childId) {
-            const sharedTasks = [...CONFIG.tasks];
-            const childTasks = CONFIG.childSpecificTasks[childId] || [];
+            const sharedTasks = [...activeTasks];
+            const childTasks = activeChildSpecificTasks[childId] || [];
             return [...sharedTasks, ...childTasks];
         }
 
         // Check if task is completed
-        function isTaskCompleted(childId, taskText) {
-            const key = getStateKey(childId, taskText);
+        function isTaskCompleted(childId, task) {
+            const key = getStateKey(childId, task);
             return state[key] === true;
         }
 
         // Toggle task completion (now updates Firestore)
-        async function toggleTask(childId, taskText, element, columnElement) {
-            const key = getStateKey(childId, taskText);
+        async function toggleTask(childId, task, element, columnElement) {
+            const key = getStateKey(childId, task);
             const docRef = doc(db, 'checklists', TODAY_KEY);
             const newValue = !state[key];
             const updateData = { [key]: newValue };
@@ -414,8 +449,8 @@
 
             if (newValue === true) { // Task is being checked
                 const childTasks = getTasksForChild(childId);
-                const allTasksWillBeComplete = childTasks.every(task =>
-                    (task.text === taskText) ? true : isTaskCompleted(childId, task.text)
+                const allTasksWillBeComplete = childTasks.every(otherTask =>
+                    (getTaskKey(otherTask) === getTaskKey(task)) ? true : isTaskCompleted(childId, otherTask)
                 );
 
                 if (allTasksWillBeComplete && !state[completionKey]) {
@@ -436,12 +471,12 @@
         // Check column completion and award medals
         function checkColumnCompletion() {
             const MEDALS = ['🥇', '🥈', '🥉'];
-            const finishers = CONFIG.children
+            const finishers = activeChildren
                 .map(child => ({ id: child.id, time: state[`${child.id}_completed_at`] }))
                 .filter(child => child.time)
                 .sort((a, b) => new Date(a.time) - new Date(b.time));
 
-            CONFIG.children.forEach(child => {
+            activeChildren.forEach(child => {
                 const columnElement = document.getElementById(`column-${child.id}`);
                 if (!columnElement) return;
 
@@ -509,27 +544,34 @@
 
         // Create a task element
         function createTaskElement(childId, childName, task, colorScheme) {
-            const isCompleted = isTaskCompleted(childId, task.text);
-            
+            const isCompleted = isTaskCompleted(childId, task);
+
             const taskDiv = document.createElement('div');
             taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2 cursor-pointer ${colorScheme.hover} flex items-center gap-2 ${isCompleted ? 'completed' : ''}`;
-            
-            taskDiv.innerHTML = `
-                <div class="checkmark ${colorScheme.checkmark} text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-base flex-shrink-0 ${isCompleted ? '' : 'hidden'}">
-                    ✓
-                </div>
-                <div class="text-2xl flex-shrink-0">${task.emoji}</div>
-                <div class="flex-1 text-lg font-semibold text-gray-700">
-                    ${task.text}
-                </div>
-            `;
-            
+            taskDiv.dataset.key = getTaskKey(task);
+
+            // Built with textContent, not innerHTML, because task text may come from Firestore
+            const checkmark = document.createElement('div');
+            checkmark.className = `checkmark ${colorScheme.checkmark} text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-base flex-shrink-0 ${isCompleted ? '' : 'hidden'}`;
+            checkmark.textContent = '✓';
+            taskDiv.appendChild(checkmark);
+
+            const emoji = document.createElement('div');
+            emoji.className = 'text-2xl flex-shrink-0';
+            emoji.textContent = task.emoji;
+            taskDiv.appendChild(emoji);
+
+            const text = document.createElement('div');
+            text.className = 'flex-1 text-lg font-semibold text-gray-700';
+            text.textContent = task.text;
+            taskDiv.appendChild(text);
+
             return taskDiv;
         }
 
         // Create a column for a child
         function createColumn(child, index) {
-            const colorScheme = COLORS[index % COLORS.length];
+            const colorScheme = getColorScheme(child, index);
             
             const column = document.createElement('div');
             column.className = `flex-1 ${colorScheme.columnBg} backdrop-blur-sm border-3 ${colorScheme.border} rounded-2xl p-2.5 shadow-xl flex flex-col transition-all duration-300`;
@@ -538,11 +580,14 @@
             // Header
             const header = document.createElement('div');
             header.className = 'mb-1.5 text-center relative';
-            header.innerHTML = `
-                <h2 class="text-2xl font-bold ${colorScheme.text}">${child.name}</h2>
-                <div class="completion-badge hidden absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg">
-                </div>
-            `;
+            const heading = document.createElement('h2');
+            heading.className = `text-2xl font-bold ${colorScheme.text}`;
+            heading.textContent = child.name;
+            header.appendChild(heading);
+
+            const badge = document.createElement('div');
+            badge.className = 'completion-badge hidden absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg';
+            header.appendChild(badge);
             column.appendChild(header);
             
             // Tasks container with scrolling enabled
@@ -555,7 +600,7 @@
                 taskElement.addEventListener('click', (e) => {
                     // Prevent click during scroll
                     if (e.target.closest('.tasks-scroll').dataset.scrolling !== 'true') {
-                        toggleTask(child.id, task.text, taskElement, column);
+                        toggleTask(child.id, task, taskElement, column);
                     }
                 });
                 tasksContainer.appendChild(taskElement);
@@ -1012,24 +1057,23 @@
 
         // Update UI based on current state
         function updateUIFromState() {
-            CONFIG.children.forEach((child, index) => {
+            activeChildren.forEach((child, index) => {
                 const columnElement = document.getElementById(`column-${child.id}`);
                 if (!columnElement) return;
                 
                 const childTasks = getTasksForChild(child.id);
                 childTasks.forEach((task) => {
-                    const key = getStateKey(child.id, task.text);
-                    const isCompleted = state[key] === true;
-                    
+                    const taskKey = getTaskKey(task);
+                    const isCompleted = isTaskCompleted(child.id, task);
+
                     // Find the task element in the DOM
                     const tasksContainer = columnElement.querySelector('.tasks-scroll');
                     if (!tasksContainer) return;
-                    
-                    // Find task by matching text content
+
+                    // Find task by its data-key (keys can contain characters like '&', so compare directly)
                     const taskElements = tasksContainer.querySelectorAll('.task-item');
                     taskElements.forEach(taskElement => {
-                        const taskTextElement = taskElement.querySelector('.flex-1');
-                        if (taskTextElement && taskTextElement.textContent.trim() === task.text) {
+                        if (taskElement.dataset.key === taskKey) {
                             const checkmark = taskElement.querySelector('.checkmark');
                             
                             if (isCompleted) {
@@ -1046,6 +1090,116 @@
 
             // Re-check column completion for all columns
             checkColumnCompletion();
+        }
+
+        // Shared config (Firestore config/checklist)
+
+        function isValidTaskList(tasks) {
+            return Array.isArray(tasks) && tasks.every(task =>
+                task && typeof task.key === 'string' && task.key !== '' &&
+                typeof task.text === 'string' && typeof task.emoji === 'string'
+            );
+        }
+
+        // Check the shape of config/checklist. Anything invalid is ignored and the active config stays.
+        function isValidChecklistConfig(data) {
+            if (!data || !Array.isArray(data.children) || data.children.length === 0) return false;
+
+            const childIds = new Set();
+            const childrenValid = data.children.every(child => {
+                if (!child || typeof child.id !== 'string' || child.id === '' || typeof child.name !== 'string') return false;
+                // 'calendar' would clash with the What's On? column id
+                if (child.id === 'calendar' || childIds.has(child.id)) return false;
+                childIds.add(child.id);
+                return true;
+            });
+            if (!childrenValid || !isValidTaskList(data.tasks)) return false;
+
+            const specific = data.childSpecificTasks;
+            if (specific !== undefined && (specific === null || typeof specific !== 'object' || Array.isArray(specific))) return false;
+            if (!Object.values(specific || {}).every(isValidTaskList)) return false;
+
+            // Each child's shared plus own task keys must be unique, as they are the database keys
+            return data.children.every(child => {
+                const keys = [...data.tasks, ...((specific || {})[child.id] || [])].map(task => task.key);
+                return new Set(keys).size === keys.length;
+            });
+        }
+
+        // Summarise what the columns render, so identical configs (including the inline one,
+        // which has no keys or colours) compare equal and don't trigger a rebuild
+        function getChecklistSignature(children, tasks, childSpecificTasks) {
+            const summariseTask = task => [getTaskKey(task), task.text, task.emoji];
+            return JSON.stringify(children.map((child, index) => [
+                child.id,
+                child.name,
+                COLORS.indexOf(getColorScheme(child, index)),
+                tasks.map(summariseTask),
+                (childSpecificTasks[child.id] || []).map(summariseTask)
+            ]));
+        }
+
+        // Swap the child columns for ones built from the active config.
+        // The calendar column and its events are never touched.
+        function rebuildChildColumns(previousChildren) {
+            const container = document.getElementById('columns-container');
+            const calendarColumn = document.getElementById('column-calendar');
+
+            previousChildren.forEach(child => {
+                const oldColumn = document.getElementById(`column-${child.id}`);
+                if (oldColumn) oldColumn.remove();
+            });
+
+            activeChildren.forEach((child, index) => {
+                const column = createColumn(child, index);
+                // Children already complete keep their medal without replaying pulse or confetti
+                if (state[`${child.id}_completed_at`]) {
+                    column.classList.add('column-complete');
+                }
+                container.insertBefore(column, calendarColumn);
+            });
+
+            updateUIFromState();
+        }
+
+        function applyChecklistConfig(data) {
+            const children = data.children;
+            const tasks = data.tasks;
+            const childSpecificTasks = data.childSpecificTasks || {};
+
+            const unchanged = getChecklistSignature(children, tasks, childSpecificTasks) ===
+                getChecklistSignature(activeChildren, activeTasks, activeChildSpecificTasks);
+            if (unchanged) return;
+
+            const previousChildren = activeChildren;
+            activeChildren = children;
+            activeTasks = tasks;
+            activeChildSpecificTasks = childSpecificTasks;
+
+            console.log('Checklist config changed, rebuilding columns');
+            rebuildChildColumns(previousChildren);
+        }
+
+        // Listen for the shared task list. Missing, invalid or unreadable config keeps the active one.
+        function setupConfigListener() {
+            const configRef = doc(db, 'config', 'checklist');
+
+            onSnapshot(configRef, (docSnap) => {
+                if (!docSnap.exists()) {
+                    console.warn('config/checklist not found, keeping current task list');
+                    return;
+                }
+
+                const data = docSnap.data();
+                if (!isValidChecklistConfig(data)) {
+                    console.warn('config/checklist is invalid, keeping current task list');
+                    return;
+                }
+
+                applyChecklistConfig(data);
+            }, (error) => {
+                console.error('Failed to listen to config/checklist, keeping current task list:', error);
+            });
         }
 
         // Clock functionality
@@ -1080,16 +1234,17 @@
                 // Build the UI
                 const container = document.getElementById('columns-container');
                 
-                CONFIG.children.forEach((child, index) => {
+                activeChildren.forEach((child, index) => {
                     const column = createColumn(child, index);
                     container.appendChild(column);
                 });
 
                 container.appendChild(createCalendarColumn());
-                
-                // Setup Firestore listener after UI is built
+
+                // Setup Firestore listeners after UI is built
                 console.log('Setting up Firestore listener...');
                 setupFirestoreListener();
+                setupConfigListener();
                 
                 // On mobile, scroll to show first column properly
                 if (window.innerWidth <= 768) {
