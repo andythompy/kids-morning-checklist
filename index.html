@@ -317,9 +317,9 @@
         const CONFIG = {
             // Children - 'id' is used for database keys, 'name' is displayed (can include emojis)
             children: [
-                { id: "rose", name: "Rose 🏃‍♀️" },
+                { id: "rose", name: "Rose 🥜" },
                 { id: "lucy", name: "Lucy 💃" },
-                { id: "olive", name: "Olive 🏊‍♀️" }
+                { id: "olive", name: "Olive 🦄" }
             ],
             tasks: [
                 { text: "Eat breakfast", emoji: "🍳" },
@@ -332,18 +332,9 @@
                 { text: "Pack bag", emoji: "🎒" },
                 { text: "Socks & shoes", emoji: "👟" }
             ],
-            // Child-specific tasks (individual chores)
-            childSpecificTasks: {
-                rose: [
-                    { text: "Bin bags", emoji: "🗑️" }
-                ],
-                lucy: [
-                    { text: "Pool chores", emoji: "🏊" }
-                ],
-                olive: [
-                    { text: "Cat food and water", emoji: "🐈" }
-                ]
-            },
+            // Child-specific tasks (individual chores), e.g. rose: [{ text: "Bin bags", emoji: "🗑️" }].
+            // Currently none, so the lists stay short and readable from a distance.
+            childSpecificTasks: {},
             // Weather Configuration
             weather: {
                 // Location coordinates (Sydney, Australia by default) - change to your location
@@ -435,7 +426,9 @@
             return Array.isArray(tasks) ? tasks : [];
         }
 
-        // Get all tasks for a specific child (shared tasks + child-specific tasks)
+        // Get all tasks for a specific child (shared tasks + child-specific tasks).
+        // Individual chores are currently left out of the config (CONFIG.childSpecificTasks
+        // and Firestore config/checklist) so the lists stay short and readable from a distance.
         function getTasksForChild(childId) {
             return [...activeTasks, ...getOwnTasks(activeChildSpecificTasks, childId)];
         }
@@ -554,22 +547,22 @@
             const isCompleted = isTaskCompleted(childId, task);
 
             const taskDiv = document.createElement('div');
-            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2 cursor-pointer ${colorScheme.hover} flex items-center gap-2 ${isCompleted ? 'completed' : ''}`;
+            taskDiv.className = `task-item ${colorScheme.bg} border-2 ${colorScheme.border} rounded-lg p-2.5 cursor-pointer ${colorScheme.hover} flex items-center gap-2.5 ${isCompleted ? 'completed' : ''}`;
             taskDiv.dataset.key = getTaskKey(task);
 
             // Built with textContent, not innerHTML, because task text may come from Firestore
             const checkmark = document.createElement('div');
-            checkmark.className = `checkmark ${colorScheme.checkmark} text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-base flex-shrink-0 ${isCompleted ? '' : 'hidden'}`;
+            checkmark.className = `checkmark ${colorScheme.checkmark} text-white rounded-full w-9 h-9 flex items-center justify-center font-bold text-xl flex-shrink-0 ${isCompleted ? '' : 'hidden'}`;
             checkmark.textContent = '✓';
             taskDiv.appendChild(checkmark);
 
             const emoji = document.createElement('div');
-            emoji.className = 'text-2xl flex-shrink-0';
+            emoji.className = 'text-3xl flex-shrink-0';
             emoji.textContent = task.emoji;
             taskDiv.appendChild(emoji);
 
             const text = document.createElement('div');
-            text.className = 'flex-1 text-lg font-semibold text-gray-700';
+            text.className = 'flex-1 text-2xl font-semibold text-gray-700';
             text.textContent = task.text;
             taskDiv.appendChild(text);
 
@@ -599,7 +592,7 @@
             
             // Tasks container with scrolling enabled
             const tasksContainer = document.createElement('div');
-            tasksContainer.className = 'flex-1 space-y-1.5 tasks-scroll';
+            tasksContainer.className = 'flex-1 space-y-2 tasks-scroll';
             
             const childTasks = getTasksForChild(child.id);
             childTasks.forEach(task => {
