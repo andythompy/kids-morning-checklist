@@ -1107,7 +1107,9 @@
 
             const childIds = new Set();
             const childrenValid = data.children.every(child => {
-                if (!child || typeof child.id !== 'string' || child.id === '' || typeof child.name !== 'string') return false;
+                if (!child || typeof child.id !== 'string' || typeof child.name !== 'string') return false;
+                // Same rule as the morning-canvas service: ids are database keys, lowercase [a-z0-9_-]
+                if (!/^[a-z0-9_-]+$/.test(child.id)) return false;
                 // 'calendar' would clash with the What's On? column id
                 if (child.id === 'calendar' || childIds.has(child.id)) return false;
                 childIds.add(child.id);
@@ -1117,6 +1119,7 @@
 
             const specific = data.childSpecificTasks;
             if (specific !== undefined && (specific === null || typeof specific !== 'object' || Array.isArray(specific))) return false;
+            if (!Object.keys(specific || {}).every(childId => childIds.has(childId))) return false;
             if (!Object.values(specific || {}).every(isValidTaskList)) return false;
 
             // Each child's shared plus own task keys must be unique, as they are the database keys
